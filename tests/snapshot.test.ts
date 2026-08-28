@@ -102,73 +102,39 @@ test("snapshot rejects a same-size same-mtime untracked file mutation", async ()
   const victimStat = await fs.stat(victim, { bigint: true });
   assert.equal(Buffer.byteLength("replaced"), Number(victimStat.size));
 
-  const originalDescriptor = Object.getOwnPropertyDescriptor(fs, "lstat");
-  const originalOpenDescriptor = Object.getOwnPropertyDescriptor(fs, "open");
-  assert.ok(originalDescriptor);
-  assert.ok(originalOpenDescriptor);
-  const originalLstat = fs.lstat;
-  const originalOpen = fs.open;
+  const probe = await fs.open(victim, "r");
+  const fileHandlePrototype = Object.getPrototypeOf(probe) as object;
+  await probe.close();
+  const originalReadDescriptor = Object.getOwnPropertyDescriptor(fileHandlePrototype, "read");
+  assert.ok(originalReadDescriptor);
+  assert.equal(typeof originalReadDescriptor.value, "function");
+  const originalRead = originalReadDescriptor.value as (...args: unknown[]) => Promise<unknown>;
   let replaced = false;
-  let victimLstatCalls = 0;
-  // Model Windows runners where file identity and timestamp fields collide.
-  // The final content check must still reject the byte-level mutation.
-  const maskLegacyIdentity = <T extends object>(actual: T): T => new Proxy(actual, {
-    get(target, property, receiver) {
-      if (
-        property === "dev" || property === "ino" || property === "birthtimeNs" ||
-        property === "ctimeNs"
-      ) {
-        return Reflect.get(victimStat, property);
-      }
-      const value = Reflect.get(target, property, receiver);
-      return typeof value === "function" ? value.bind(target) : value;
-    }
-  });
-  Object.defineProperty(fs, "lstat", {
-    ...originalDescriptor,
-    value: async (...args: unknown[]) => {
-      const result = await Reflect.apply(originalLstat, fs, args);
-      if (path.resolve(String(args[0])) === path.resolve(victim)) {
-        victimLstatCalls += 1;
-        if (!replaced && victimLstatCalls === 2) {
-          // The initial descriptor has already hashed "original". Mutate only
-          // after finalPath captured the old stat so the verifier must detect
-          // the same-size, same-mtime byte change through its own descriptor.
-          replaced = true;
-          await fs.writeFile(victim, "replaced");
-          await fs.utimes(victim, stableTimestamp, stableTimestamp);
-          return result;
-        }
-        if (replaced) return maskLegacyIdentity(result);
+  Object.defineProperty(fileHandlePrototype, "read", {
+    ...originalReadDescriptor,
+    value: async function (...args: unknown[]) {
+      const result = await Reflect.apply(originalRead, this, args) as { bytesRead?: unknown };
+      if (!replaced && typeof result.bytesRead === "number" && result.bytesRead > 0) {
+        // The read buffer already contains "original". Mutate the live path
+        // before hashOpenFile consumes it so the later descriptor/stat checks
+        // and independently reopened verifier observe "replaced".
+        replaced = true;
+        await fs.writeFile(victim, "replaced");
+        await fs.utimes(victim, stableTimestamp, stableTimestamp);
       }
       return result;
-    }
-  });
-  Object.defineProperty(fs, "open", {
-    ...originalOpenDescriptor,
-    value: async (...args: unknown[]) => {
-      const handle = await Reflect.apply(originalOpen, fs, args);
-      if (path.resolve(String(args[0])) !== path.resolve(victim)) return handle;
-      return new Proxy(handle, {
-        get(target, property, receiver) {
-          if (property === "stat") {
-            return async (...statArgs: unknown[]) => maskLegacyIdentity(
-              await Reflect.apply(target.stat, target, statArgs) as object
-            );
-          }
-          const value = Reflect.get(target, property, receiver);
-          return typeof value === "function" ? value.bind(target) : value;
-        }
-      });
     }
   });
   try {
     await assert.rejects(captureWorkspaceSnapshot(repo), /Workspace changed while a file was captured/);
   } finally {
-    Object.defineProperty(fs, "lstat", originalDescriptor);
-    Object.defineProperty(fs, "open", originalOpenDescriptor);
+    Object.defineProperty(fileHandlePrototype, "read", originalReadDescriptor);
   }
   assert.equal(replaced, true);
+  const replacedStat = await fs.stat(victim, { bigint: true });
+  assert.equal(replacedStat.size, victimStat.size);
+  assert.equal(replacedStat.mtimeNs, victimStat.mtimeNs);
+  assert.equal(await fs.readFile(victim, "utf8"), "replaced");
 });
 
 test("snapshot rejects a same-target symlink replacement", {
