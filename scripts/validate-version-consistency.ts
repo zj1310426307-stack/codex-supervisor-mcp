@@ -21,13 +21,13 @@ for (const [label, value] of [
   ["manifest serverVersion", artifact.serverVersion],
   ["manifest toolSurfaceVersion", artifact.toolSurfaceVersion]
 ] as Array<[string, unknown]>) {
-  if (value !== "0.3.0") failures.push(`${label}: expected 0.3.0, received ${String(value)}`);
+  if (value !== "0.4.0") failures.push(`${label}: expected 0.4.0, received ${String(value)}`);
 }
 if (artifact.restricted?.toolCount !== restricted.toolCount) failures.push("restricted tool count drift");
 if (artifact.full?.toolCount !== full.toolCount) failures.push("full tool count drift");
 if (artifact.restricted?.toolSchemaHash !== restricted.toolSchemaHash) failures.push("restricted tool hash drift");
 if (artifact.full?.toolSchemaHash !== full.toolSchemaHash) failures.push("full tool hash drift");
-if (!readme.includes("v0.3.0") || !readme.includes("**23**") || !readme.includes("**13**")) {
+if (!readme.includes("v0.4.0") || !readme.includes("**23**") || !readme.includes("**13**")) {
   failures.push("README current version/tool counts are missing");
 }
 

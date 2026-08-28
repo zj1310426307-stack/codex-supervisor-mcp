@@ -1,11 +1,11 @@
 {
   "serverName": "codex-supervisor-mcp",
-  "serverVersion": "0.3.0",
-  "toolSurfaceVersion": "0.3.0",
+  "serverVersion": "0.4.0",
+  "toolSurfaceVersion": "0.4.0",
   "restricted": {
     "serverName": "codex-supervisor-mcp",
-    "serverVersion": "0.3.0",
-    "toolSurfaceVersion": "0.3.0",
+    "serverVersion": "0.4.0",
+    "toolSurfaceVersion": "0.4.0",
     "mode": "restricted",
     "toolCount": 13,
     "toolSchemaHash": "ff8bdcd4a57a6657c34a51fce89f8763adf9e658ab0833efce183163d3fdc23c",
@@ -329,11 +329,11 @@
   },
   "full": {
     "serverName": "codex-supervisor-mcp",
-    "serverVersion": "0.3.0",
-    "toolSurfaceVersion": "0.3.0",
+    "serverVersion": "0.4.0",
+    "toolSurfaceVersion": "0.4.0",
     "mode": "full",
     "toolCount": 23,
-    "toolSchemaHash": "df0eec76487d28ddfbf9619c6b1d3427e46979c46f756f1f4da74a44b762957e",
+    "toolSchemaHash": "b3b0284da37852d182a0e1d8b403634c176b41d468dfdac7290485913c4ecc00",
     "tools": [
       {
         "name": "codex_health",
@@ -826,7 +826,7 @@
                   "type": "object"
                 },
                 "toolSurfaceVersion": {
-                  "const": "0.3.0",
+                  "const": "0.4.0",
                   "type": "string"
                 },
                 "workspace": {
@@ -884,7 +884,7 @@
                   "type": "array"
                 },
                 "toolSurfaceVersion": {
-                  "const": "0.3.0",
+                  "const": "0.4.0",
                   "type": "string"
                 },
                 "verificationProfile": {
@@ -907,7 +907,8 @@
               ],
               "type": "object"
             }
-          ]
+          ],
+          "type": "object"
         }
       },
       {
@@ -935,7 +936,7 @@
               "type": "string"
             },
             "toolSurfaceVersion": {
-              "const": "0.3.0",
+              "const": "0.4.0",
               "type": "string"
             }
           },
@@ -971,7 +972,7 @@
               "type": "string"
             },
             "toolSurfaceVersion": {
-              "const": "0.3.0",
+              "const": "0.4.0",
               "type": "string"
             }
           },
@@ -1002,7 +1003,7 @@
               "type": "string"
             },
             "toolSurfaceVersion": {
-              "const": "0.3.0",
+              "const": "0.4.0",
               "type": "string"
             }
           },
@@ -1045,7 +1046,7 @@
               "type": "string"
             },
             "toolSurfaceVersion": {
-              "const": "0.3.0",
+              "const": "0.4.0",
               "type": "string"
             }
           },
@@ -1076,7 +1077,7 @@
               "type": "string"
             },
             "toolSurfaceVersion": {
-              "const": "0.3.0",
+              "const": "0.4.0",
               "type": "string"
             }
           },
@@ -1111,7 +1112,7 @@
               "type": "string"
             },
             "toolSurfaceVersion": {
-              "const": "0.3.0",
+              "const": "0.4.0",
               "type": "string"
             }
           },
@@ -1191,7 +1192,7 @@
                   "type": "string"
                 },
                 "toolSurfaceVersion": {
-                  "const": "0.3.0",
+                  "const": "0.4.0",
                   "type": "string"
                 }
               },
@@ -1241,7 +1242,7 @@
                   "type": "string"
                 },
                 "toolSurfaceVersion": {
-                  "const": "0.3.0",
+                  "const": "0.4.0",
                   "type": "string"
                 }
               },
@@ -1252,7 +1253,8 @@
               ],
               "type": "object"
             }
-          ]
+          ],
+          "type": "object"
         }
       },
       {
@@ -1275,7 +1277,7 @@
               "type": "string"
             },
             "toolSurfaceVersion": {
-              "const": "0.3.0",
+              "const": "0.4.0",
               "type": "string"
             }
           },
@@ -1310,7 +1312,7 @@
               "type": "string"
             },
             "toolSurfaceVersion": {
-              "const": "0.3.0",
+              "const": "0.4.0",
               "type": "string"
             }
           },

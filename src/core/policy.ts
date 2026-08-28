@@ -5,20 +5,27 @@ export type ApprovalMethod =
   | "item/fileChange/requestApproval";
 
 const COMMAND_APPROVAL_FIELDS = new Set([
+  "approvalId",
   "itemId",
   "threadId",
   "turnId",
+  "startedAtMs",
   "reason",
   "command",
   "cwd",
   "commandActions",
+  "environmentId",
+  "kind",
   "proposedExecpolicyAmendment",
+  "proposedNetworkPolicyAmendments",
   "networkApprovalContext",
   "availableDecisions",
   "additionalPermissions"
 ]);
 
-const FILE_APPROVAL_FIELDS = new Set(["itemId", "threadId", "turnId", "reason", "grantRoot"]);
+const FILE_APPROVAL_FIELDS = new Set(["itemId", "threadId", "turnId", "startedAtMs", "reason", "grantRoot"]);
+
+const COMMAND_APPROVAL_DECISIONS = new Set(["accept", "acceptForSession", "decline", "cancel"]);
 
 const BLOCKED_COMMAND_PATTERNS: Array<[RegExp, string]> = [
   [/\bsudo\b/i, "privilege escalation"],
@@ -59,7 +66,11 @@ function hasOnlyFields(params: Record<string, unknown>, allowed: Set<string>): b
 
 function validCommonContext(params: Record<string, unknown>): boolean {
   return ["itemId", "threadId", "turnId"].every((key) => isNonEmptyString(params[key])) &&
-    (params.reason === undefined || typeof params.reason === "string");
+    (params.reason === undefined || params.reason === null || typeof params.reason === "string") &&
+    (
+      params.startedAtMs === undefined ||
+      (Number.isSafeInteger(params.startedAtMs) && Number(params.startedAtMs) >= 0)
+    );
 }
 
 function isInsideWorkspace(workspace: string, candidate: string): boolean {
@@ -90,6 +101,35 @@ function commandText(value: unknown): string | undefined {
 function commandActionsAreStructured(value: unknown): boolean {
   if (!Array.isArray(value)) return false;
   return value.every((action) => typeof action === "string" || isRecord(action));
+}
+
+function stringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => isNonEmptyString(entry));
+}
+
+function networkPolicyAmendmentIsStructured(value: unknown): boolean {
+  return isRecord(value) &&
+    hasOnlyFields(value, new Set(["action", "host"])) &&
+    (value.action === "allow" || value.action === "deny") &&
+    isNonEmptyString(value.host);
+}
+
+function availableDecisionIsStructured(value: unknown): boolean {
+  if (typeof value === "string") return COMMAND_APPROVAL_DECISIONS.has(value);
+  if (!isRecord(value)) return false;
+  if (hasOnlyFields(value, new Set(["acceptWithExecpolicyAmendment"]))) {
+    const proposal = value.acceptWithExecpolicyAmendment;
+    return isRecord(proposal) &&
+      hasOnlyFields(proposal, new Set(["execpolicy_amendment"])) &&
+      stringArray(proposal.execpolicy_amendment);
+  }
+  if (hasOnlyFields(value, new Set(["applyNetworkPolicyAmendment"]))) {
+    const proposal = value.applyNetworkPolicyAmendment;
+    return isRecord(proposal) &&
+      hasOnlyFields(proposal, new Set(["network_policy_amendment"])) &&
+      networkPolicyAmendmentIsStructured(proposal.network_policy_amendment);
+  }
+  return false;
 }
 
 function collectNestedPathFields(value: unknown, out: string[], key = ""): void {
@@ -167,29 +207,68 @@ function classifyCommandApproval(params: Record<string, unknown>, workspace: str
 
   const command = commandText(params.command);
   if (!command) reasons.push("command approval has an invalid command");
-  if (params.cwd !== undefined && !isNonEmptyString(params.cwd)) reasons.push("command approval has an invalid cwd");
-  if (params.cwd === undefined) reasons.push("command approval has no workspace-bound cwd");
-  if (params.commandActions !== undefined && !commandActionsAreStructured(params.commandActions)) {
+  if (!isNonEmptyString(params.cwd)) reasons.push("command approval has no workspace-bound cwd");
+  if (params.commandActions !== undefined && params.commandActions !== null && !commandActionsAreStructured(params.commandActions)) {
     reasons.push("command approval has malformed commandActions");
   }
   if (
+    params.approvalId !== undefined &&
+    params.approvalId !== null &&
+    !isNonEmptyString(params.approvalId)
+  ) {
+    reasons.push("command approval has malformed approvalId");
+  }
+  if (
+    params.environmentId !== undefined &&
+    params.environmentId !== null &&
+    !isNonEmptyString(params.environmentId)
+  ) {
+    reasons.push("command approval has malformed environmentId");
+  }
+  if (params.kind !== undefined && params.kind !== "command" && params.kind !== "writeStdin") {
+    reasons.push("command approval has an unknown kind");
+  }
+  if (params.kind === "writeStdin") {
+    reasons.push("local supervisor does not authorize writeStdin approvals");
+  }
+  if (
     params.availableDecisions !== undefined &&
-    (!Array.isArray(params.availableDecisions) || !params.availableDecisions.every((entry) => typeof entry === "string"))
+    params.availableDecisions !== null &&
+    (
+      !Array.isArray(params.availableDecisions) ||
+      !params.availableDecisions.every(availableDecisionIsStructured)
+    )
   ) {
     reasons.push("command approval has malformed availableDecisions");
   }
-  if (Object.hasOwn(params, "proposedExecpolicyAmendment")) {
-    reasons.push("local supervisor does not authorize exec policy amendments");
+  if (
+    params.proposedExecpolicyAmendment !== undefined &&
+    params.proposedExecpolicyAmendment !== null &&
+    !stringArray(params.proposedExecpolicyAmendment)
+  ) {
+    reasons.push("command approval has malformed proposedExecpolicyAmendment");
   }
-  if (Object.hasOwn(params, "networkApprovalContext")) {
+  if (
+    params.proposedNetworkPolicyAmendments !== undefined &&
+    params.proposedNetworkPolicyAmendments !== null &&
+    (
+      !Array.isArray(params.proposedNetworkPolicyAmendments) ||
+      !params.proposedNetworkPolicyAmendments.every(networkPolicyAmendmentIsStructured)
+    )
+  ) {
+    reasons.push("command approval has malformed proposedNetworkPolicyAmendments");
+  }
+  if (params.networkApprovalContext !== undefined && params.networkApprovalContext !== null) {
     reasons.push("local supervisor does not authorize network access");
   }
-  if (Object.hasOwn(params, "additionalPermissions")) {
+  if (params.additionalPermissions !== undefined && params.additionalPermissions !== null) {
     reasons.push("local supervisor does not authorize additional permissions");
   }
 
   const commands = command ? [command] : [];
-  if (params.commandActions !== undefined) collectNestedCommandFields(params.commandActions, commands);
+  if (params.commandActions !== undefined && params.commandActions !== null) {
+    collectNestedCommandFields(params.commandActions, commands);
+  }
   for (const candidateCommand of commands) {
     for (const [pattern, reason] of BLOCKED_COMMAND_PATTERNS) {
       if (pattern.test(candidateCommand)) reasons.push(reason);
@@ -204,7 +283,9 @@ function classifyCommandApproval(params: Record<string, unknown>, workspace: str
 
   const paths: string[] = [];
   if (typeof params.cwd === "string") paths.push(params.cwd);
-  if (params.commandActions !== undefined) collectNestedPathFields(params.commandActions, paths);
+  if (params.commandActions !== undefined && params.commandActions !== null) {
+    collectNestedPathFields(params.commandActions, paths);
+  }
   if (paths.some((candidate) => !isInsideWorkspace(workspace, candidate))) {
     reasons.push("command approval references a path outside the supervised workspace");
   }
@@ -216,7 +297,7 @@ function classifyFileApproval(params: Record<string, unknown>, workspace: string
   const reasons: string[] = [];
   if (!hasOnlyFields(params, FILE_APPROVAL_FIELDS)) reasons.push("file approval contains unknown fields");
   if (!validCommonContext(params)) reasons.push("file approval is missing exact item/thread/turn identity");
-  if (params.grantRoot !== undefined && !isNonEmptyString(params.grantRoot)) {
+  if (params.grantRoot !== undefined && params.grantRoot !== null && !isNonEmptyString(params.grantRoot)) {
     reasons.push("file approval has an invalid grantRoot");
   }
   if (typeof params.grantRoot === "string" && !isInsideWorkspace(workspace, params.grantRoot)) {

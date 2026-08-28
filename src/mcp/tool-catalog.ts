@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import * as z from "zod/v4";
 
-export const TOOL_SURFACE_VERSION = "0.3.0" as const;
+export const TOOL_SURFACE_VERSION = "0.4.0" as const;
 
 export const READ_ONLY_ANNOTATIONS = {
   readOnlyHint: true,
@@ -405,6 +405,9 @@ export function inputJsonSchema(tool: ToolDefinition): JsonSchema {
   if (["codex_task_start", "codex_task_decide"].includes(tool.name) && Array.isArray(converted.anyOf)) {
     converted.oneOf = converted.anyOf;
     delete converted.anyOf;
+    // The MCP SDK advertises object-shaped tool inputs with this top-level
+    // marker. Keep the manifest/hash source byte-equivalent to tools/list.
+    converted.type = "object";
   }
   return sortValue(converted) as JsonSchema;
 }

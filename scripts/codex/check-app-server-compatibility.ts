@@ -17,7 +17,6 @@ try {
   });
   const report = redact({
     status: "PASS",
-    checkedAt: new Date().toISOString(),
     commandSource: codex.source,
     ...probe
   });

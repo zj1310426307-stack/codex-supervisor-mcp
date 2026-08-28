@@ -7,11 +7,22 @@ const fileMethod = "item/fileChange/requestApproval";
 
 function commandParams(command: string, overrides: Record<string, unknown> = {}) {
   return {
+    approvalId: null,
     itemId: "item-1",
     threadId: "thread-1",
     turnId: "turn-1",
+    startedAtMs: 1_777_000_000_000,
+    reason: null,
     command,
     cwd: ".",
+    commandActions: null,
+    environmentId: null,
+    kind: "command",
+    proposedExecpolicyAmendment: null,
+    proposedNetworkPolicyAmendments: null,
+    networkApprovalContext: null,
+    availableDecisions: null,
+    additionalPermissions: null,
     ...overrides
   };
 }
@@ -58,6 +69,45 @@ test("network, permission, and policy escalation fields are fail-closed", () => 
     classifyApproval(commandMethod, commandParams("npm test", { proposedExecpolicyAmendment: {} }), "/repo").risk,
     "blocked"
   );
+  assert.equal(
+    classifyApproval(
+      commandMethod,
+      commandParams("npm test", { proposedNetworkPolicyAmendments: [{ action: "maybe", host: "example.com" }] }),
+      "/repo"
+    ).risk,
+    "blocked"
+  );
+});
+
+test("Codex 0.150 nullable command approval metadata carries no implicit authority", () => {
+  assert.equal(classifyApproval(commandMethod, commandParams("npm test"), "/repo").risk, "normal");
+  assert.equal(
+    classifyApproval(commandMethod, commandParams("npm test", { availableDecisions: ["accept", "decline"] }), "/repo").risk,
+    "normal"
+  );
+  assert.equal(
+    classifyApproval(
+      commandMethod,
+      commandParams("git status --short", {
+        proposedExecpolicyAmendment: ["git", "status", "--short"],
+        availableDecisions: [
+          "accept",
+          { acceptWithExecpolicyAmendment: { execpolicy_amendment: ["git", "status", "--short"] } },
+          "cancel"
+        ]
+      }),
+      "/repo"
+    ).risk,
+    "normal"
+  );
+  assert.equal(
+    classifyApproval(commandMethod, commandParams("npm test", { availableDecisions: ["alwaysAllow"] }), "/repo").risk,
+    "blocked"
+  );
+  assert.equal(
+    classifyApproval(commandMethod, commandParams("npm test", { kind: "writeStdin" }), "/repo").risk,
+    "blocked"
+  );
 });
 
 test("unknown fields and incomplete request identity are fail-closed", () => {
@@ -68,7 +118,14 @@ test("unknown fields and incomplete request identity are fail-closed", () => {
 });
 
 test("file grantRoot must remain inside the supervised workspace", () => {
-  const common = { itemId: "item-1", threadId: "thread-1", turnId: "turn-1" };
+  const common = {
+    itemId: "item-1",
+    threadId: "thread-1",
+    turnId: "turn-1",
+    startedAtMs: 1_777_000_000_000,
+    reason: null
+  };
+  assert.equal(classifyApproval(fileMethod, { ...common, grantRoot: null }, "/repo").risk, "normal");
   assert.equal(classifyApproval(fileMethod, { ...common, grantRoot: "src" }, "/repo").risk, "normal");
   assert.equal(classifyApproval(fileMethod, { ...common, grantRoot: "../outside" }, "/repo").risk, "blocked");
 });

@@ -26,6 +26,8 @@ const fakeOciStateRoot = path.join(os.tmpdir(), `codex-supervisor-fake-oci-orche
 
 class FakeCodexClient extends EventEmitter {
   readonly errors: Array<{ id: string | number; code: number; message: string }> = [];
+  readonly responses: Array<{ id: string | number; result: unknown }> = [];
+  readonly requests: Array<{ method: string; params: unknown }> = [];
   ready = false;
   constructor(
     private readonly earlyTurnStarted = false,
@@ -33,7 +35,8 @@ class FakeCodexClient extends EventEmitter {
     private readonly earlyTurnCompleted = false,
     private readonly failTurnStart = false
   ) { super(); }
-  async request(method: string): Promise<unknown> {
+  async request(method: string, params?: unknown): Promise<unknown> {
+    this.requests.push({ method, params });
     this.ready = true;
     if (method === "account/read") return { account: { type: "apiKey" } };
     if (method === "thread/start" || method === "thread/resume") return { thread: { id: "thread-1" } };
@@ -59,7 +62,9 @@ class FakeCodexClient extends EventEmitter {
   }
   isReady(): boolean { return this.ready; }
   connectionCount(): number { return this.ready ? 1 : 0; }
-  async respond(): Promise<void> {}
+  async respond(id: string | number, result: unknown): Promise<void> {
+    this.responses.push({ id, result });
+  }
   async respondError(id: string | number, code: number, message: string): Promise<void> {
     this.errors.push({ id, code, message });
   }
@@ -77,7 +82,7 @@ class TailExitCodexClient extends FakeCodexClient {
 class LatePriorCompletionClient extends FakeCodexClient {
   private turnStarts = 0;
 
-  override async request(method: string): Promise<unknown> {
+  override async request(method: string, params?: unknown): Promise<unknown> {
     if (method === "turn/start") {
       this.turnStarts += 1;
       if (this.turnStarts === 2) {
@@ -88,13 +93,56 @@ class LatePriorCompletionClient extends FakeCodexClient {
         return { turn: { id: "turn-2" } };
       }
     }
-    return super.request(method);
+    return super.request(method, params);
+  }
+}
+
+class PostThreadStateTelemetryStore extends TaskStore {
+  emitted = false;
+
+  constructor(file: string, private readonly client: FakeCodexClient) {
+    super(file);
+  }
+
+  override async put(task: TaskRecord): Promise<void> {
+    await super.put(task);
+    if (
+      !this.emitted &&
+      task.status === "preparing" &&
+      task.threadId === "thread-1" &&
+      !task.pendingTurnStart
+    ) {
+      this.emitted = true;
+      this.client.emit("notification", {
+        method: "thread/started",
+        params: { thread: { id: "thread-1" } }
+      });
+      this.client.emit("notification", {
+        method: "mcpServer/startupStatus/updated",
+        params: { threadId: "thread-1", name: "probe", status: "ready" }
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
   }
 }
 
 class FailingApprovalResponseClient extends FakeCodexClient {
   override async respond(): Promise<void> {
     throw new Error("synthetic approval response transport failure");
+  }
+}
+
+class CascadingApprovalClient extends FakeCodexClient {
+  nextServerRequest?: { id: string; method: string; params: Record<string, unknown> };
+
+  override async respond(id: string | number, result: unknown): Promise<void> {
+    await super.respond(id, result);
+    const next = this.nextServerRequest;
+    this.nextServerRequest = undefined;
+    if (next) {
+      this.emit("serverRequest", next);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
   }
 }
 
@@ -123,6 +171,7 @@ function config(root: string): Config {
     allowedOrigins: [],
     codexBin: "codex-test",
     codexBinSource: "explicit",
+    codexModel: "gpt-5.4-mini",
     codexExperimentalApi: false,
     codexReadRetries: 0,
     codexRetryBaseDelayMs: 1,
@@ -226,9 +275,12 @@ async function fixture(
     instanceLock: fakeLock as never,
     verificationConfig: selectedVerificationConfig,
     runtimeProbe: async () => ({
+      checkedAt: new Date().toISOString(),
       version: "codex-test 1.0.0",
       schemaHash: "a".repeat(64),
       schemaFileCount: 1,
+      schemaGeneration: { command: "codex app-server generate-json-schema", isolatedTemporaryDirectory: true },
+      experimentalApiRequested: false,
       capabilities
     })
   });
@@ -245,6 +297,68 @@ async function waitForStatus(orchestrator: Orchestrator, taskId: string, status:
   assert.fail(`Task did not reach ${status}; current=${orchestrator.getTask(taskId).status}`);
 }
 
+test("supervisor sends current stable App Server thread option values", async () => {
+  const { root, repository, orchestrator, fakeClient } = await fixture();
+  try {
+    await orchestrator.startTask({
+      workspace: repository,
+      clientRequestId: "current-thread-options-request",
+      objective: "Exercise the stable Codex thread options.",
+      plan: ["Start one supervised turn"],
+      acceptanceCriteria: ["The thread uses current App Server enum values"]
+    });
+    const request = fakeClient.requests.find((entry) => entry.method === "thread/start");
+    assert.ok(request);
+    const params = request.params as Record<string, unknown>;
+    assert.equal(params.approvalPolicy, "untrusted");
+    assert.equal(params.sandbox, "workspace-write");
+    assert.equal(params.approvalsReviewer, "user");
+    assert.equal(params.model, "gpt-5.4-mini");
+  } finally {
+    await orchestrator.stop();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("post-response thread telemetry cannot deadlock exact turn/start binding", async () => {
+  const client = new FakeCodexClient();
+  let telemetryStore: PostThreadStateTelemetryStore | undefined;
+  const { root, repository, orchestrator } = await fixture(
+    verificationConfig,
+    false,
+    false,
+    false,
+    client,
+    (stateFile) => {
+      telemetryStore = new PostThreadStateTelemetryStore(stateFile, client);
+      return telemetryStore;
+    }
+  );
+  let deadline: NodeJS.Timeout | undefined;
+  try {
+    const task = await Promise.race([
+      orchestrator.startTask({
+        workspace: repository,
+        clientRequestId: "post-thread-start-telemetry",
+        objective: "Bind a turn after immediate thread telemetry.",
+        plan: ["Start one supervised turn"],
+        acceptanceCriteria: ["The start operation does not deadlock"]
+      }),
+      new Promise<never>((_resolve, reject) => {
+        deadline = setTimeout(() => reject(new Error("startTask deadlocked behind post-response telemetry")), 2_000);
+      })
+    ]);
+    if (deadline) clearTimeout(deadline);
+    assert.equal(task.status, "running");
+    assert.equal(task.turnStatus, "in_progress");
+    assert.equal(telemetryStore?.emitted, true);
+  } finally {
+    if (deadline) clearTimeout(deadline);
+    await orchestrator.stop();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 /** Construct a new Supervisor runtime over an existing durable test ledger. */
 function restartedOrchestrator(root: string, selectedVerificationConfig = verificationConfig): Orchestrator {
   return new Orchestrator(config(root), {
@@ -257,9 +371,12 @@ function restartedOrchestrator(root: string, selectedVerificationConfig = verifi
     } as never,
     verificationConfig: selectedVerificationConfig,
     runtimeProbe: async () => ({
+      checkedAt: new Date().toISOString(),
       version: "codex-test 1.0.0",
       schemaHash: "a".repeat(64),
       schemaFileCount: 1,
+      schemaGeneration: { command: "codex app-server generate-json-schema", isolatedTemporaryDirectory: true },
+      experimentalApiRequested: false,
       capabilities: evaluateProtocolCapabilities([
         "initialize", "initialized", "account/read", "thread/start", "thread/resume", "thread/read",
         "turn/start", "turn/steer", "turn/interrupt", "turn/started", "turn/completed",
@@ -750,6 +867,106 @@ test("approval authority is invalidated when the exact active lease is lost", as
   }
 });
 
+test("single-use approval never applies an offered execpolicy amendment", async () => {
+  const { root, repository, orchestrator, fakeClient } = await fixture();
+  try {
+    const task = await orchestrator.startTask({
+      workspace: repository,
+      clientRequestId: "single-use-approval-request",
+      objective: "Use only a single command approval.",
+      plan: ["Inspect repository status"],
+      acceptanceCriteria: ["No persistent approval rule is applied"]
+    });
+    fakeClient.emit("serverRequest", {
+      id: "approval-request-single-use",
+      method: "item/commandExecution/requestApproval",
+      params: {
+        approvalId: null,
+        itemId: "item-single-use",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        startedAtMs: 1_777_000_000_000,
+        environmentId: "local",
+        kind: "command",
+        command: "git status --short",
+        cwd: task.worktree,
+        commandActions: [{ type: "unknown", command: "git status --short" }],
+        proposedExecpolicyAmendment: ["git", "status", "--short"],
+        availableDecisions: [
+          "accept",
+          { acceptWithExecpolicyAmendment: { execpolicy_amendment: ["git", "status", "--short"] } },
+          "cancel"
+        ]
+      }
+    });
+    await waitForStatus(orchestrator, task.id, "waiting_approval");
+    const approval = orchestrator.listApprovals(task.id)[0]!;
+    assert.equal(approval.risk, "normal");
+    await orchestrator.decideApproval(approval.approvalId, "accept", task.id);
+    assert.deepEqual(fakeClient.responses, [{
+      id: "approval-request-single-use",
+      result: { decision: "accept" }
+    }]);
+  } finally {
+    await orchestrator.stop();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a chained approval waits for the prior single-use decision to be durably recorded", async () => {
+  const cascadingClient = new CascadingApprovalClient();
+  const { root, repository, orchestrator, fakeClient } = await fixture(
+    verificationConfig,
+    false,
+    false,
+    false,
+    cascadingClient
+  );
+  try {
+    const task = await orchestrator.startTask({
+      workspace: repository,
+      clientRequestId: "chained-approval-request",
+      objective: "Serialize two exact approval requests.",
+      plan: ["Inspect twice"],
+      acceptanceCriteria: ["The second request retains exact turn authority"]
+    });
+    cascadingClient.nextServerRequest = {
+      id: "approval-request-second",
+      method: "item/commandExecution/requestApproval",
+      params: {
+        itemId: "item-second",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        command: "git diff --stat",
+        cwd: task.worktree
+      }
+    };
+    fakeClient.emit("serverRequest", {
+      id: "approval-request-first",
+      method: "item/commandExecution/requestApproval",
+      params: {
+        itemId: "item-first",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        command: "git status --short",
+        cwd: task.worktree
+      }
+    });
+    await waitForStatus(orchestrator, task.id, "waiting_approval");
+    const first = orchestrator.listApprovals(task.id)[0]!;
+    await orchestrator.decideApproval(first.approvalId, "accept", task.id);
+    await waitForStatus(orchestrator, task.id, "waiting_approval");
+    const second = orchestrator.listApprovals(task.id)[0]!;
+    assert.equal(second.params.itemId, "item-second");
+    assert.deepEqual(fakeClient.errors, []);
+    assert.equal(orchestrator.getTask(task.id).turnLease?.state, "active");
+    await orchestrator.decideApproval(second.approvalId, "decline", task.id);
+  } finally {
+    await orchestrator.stop();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test("approval response transport failure revokes authority without recording a decision", async () => {
   const failingClient = new FailingApprovalResponseClient();
   const { root, repository, orchestrator, fakeClient } = await fixture(
@@ -1101,9 +1318,12 @@ test("restart restores a lost writer lease and exact terminal recovery releases 
       } as never,
       verificationConfig,
       runtimeProbe: async () => ({
+        checkedAt: new Date().toISOString(),
         version: "codex-test 1.0.0",
         schemaHash: "a".repeat(64),
         schemaFileCount: 1,
+        schemaGeneration: { command: "codex app-server generate-json-schema", isolatedTemporaryDirectory: true },
+        experimentalApiRequested: false,
         capabilities: evaluateProtocolCapabilities([
           "initialize", "initialized", "account/read", "thread/start", "thread/resume", "thread/read",
           "turn/start", "turn/steer", "turn/interrupt", "turn/started", "turn/completed",
@@ -1118,6 +1338,12 @@ test("restart restores a lost writer lease and exact terminal recovery releases 
     const continued = await restarted.continueTask({ taskId: task.id, instruction: "continue after exact proof" });
     assert.equal(continued.status, "running");
     assert.notEqual(continued.turnLease?.leaseId, priorLeaseId);
+    const resumeRequest = fakeClient.requests.find((entry) => entry.method === "thread/resume");
+    assert.ok(resumeRequest);
+    const resumeParams = resumeRequest.params as Record<string, unknown>;
+    assert.equal(resumeParams.approvalPolicy, "untrusted");
+    assert.equal(resumeParams.sandbox, "workspace-write");
+    assert.equal(resumeParams.approvalsReviewer, "user");
   } finally {
     if (restarted) await restarted.stop().catch(() => undefined);
     await fs.rm(root, { recursive: true, force: true });

@@ -11,6 +11,7 @@ export interface Config {
   codexBin: string;
   codexBinSource: CodexCommandSource;
   codexHome?: string;
+  codexModel?: string;
   codexExperimentalApi: boolean;
   codexReadRetries: number;
   codexRetryBaseDelayMs: number;
@@ -100,6 +101,21 @@ function validateMcpPath(value: string): string {
   return value;
 }
 
+const PLACEHOLDER_BEARER_TOKENS = new Set([
+  "changeme",
+  "replace-me",
+  "replace-with-a-long-random-secret",
+  "example",
+  "example-token",
+  "test-token",
+  "default",
+  "password"
+]);
+
+export function isPlaceholderBearerToken(value: string): boolean {
+  return PLACEHOLDER_BEARER_TOKENS.has(value.trim().toLowerCase());
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const host = env.MCP_HOST?.trim() || "127.0.0.1";
   const workspaceRoots = roots(env.CODEX_WORKSPACE_ROOTS);
@@ -121,6 +137,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (bearerToken && Buffer.byteLength(bearerToken, "utf8") < 32) {
     throw new Error("MCP_BEARER_TOKEN must contain at least 32 bytes");
   }
+  if (bearerToken && isPlaceholderBearerToken(bearerToken)) {
+    throw new Error("MCP_BEARER_TOKEN must not use an obvious placeholder value");
+  }
 
   const codex = resolveCodexCommand({ configured: env.CODEX_BIN, env });
   const stateFile = path.resolve(env.SUPERVISOR_STATE_FILE?.trim() || ".codex-supervisor/state.json");
@@ -140,6 +159,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     codexBin: codex.command,
     codexBinSource: codex.source,
     codexHome: env.CODEX_HOME?.trim() || undefined,
+    codexModel: env.CODEX_MODEL?.trim() || undefined,
     codexExperimentalApi: bool(env, "CODEX_EXPERIMENTAL_API", false),
     codexReadRetries: int(env, "CODEX_READ_RETRIES", 2, true),
     codexRetryBaseDelayMs: int(env, "CODEX_RETRY_BASE_DELAY_MS", 50),
@@ -167,6 +187,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     headersTimeoutMs: int(env, "MCP_HEADERS_TIMEOUT_MS", 10_000),
     httpRequestTimeoutMs: int(env, "MCP_REQUEST_TIMEOUT_MS", 30_000),
     readinessTimeoutMs: int(env, "MCP_READINESS_TIMEOUT_MS", 3_000),
-    controlEnabled: bool(env, "MCP_CONTROL_ENABLED", true)
+    controlEnabled: bool(env, "MCP_CONTROL_ENABLED", false)
   };
 }

@@ -1,5 +1,14 @@
 # Validation
 
-The current v0.3.0 validation record is maintained in `docs/ORCH-PHASE-03-VALIDATION.md`.
+The current v0.4.0 validation record is maintained in `docs/ORCH-PHASE-04-VALIDATION.md`.
 
-The current local deterministic suite passes typechecking, 144 tests with 2 explicit Windows platform skips, production build, generic and Phase 03 validation, generated tool-surface count/hash consistency, version consistency, and security scanning. The dependency audit reports zero known vulnerabilities. Real Codex and ChatGPT Web results remain separate tracks and are never inferred from fake/injected protocol tests.
+The Phase 04 suite includes typechecking, unit/integration tests, production
+build, generic and Phase 04 validation, version/security checks, and real local
+Streamable HTTP scans through the official MCP SDK. Restricted exposes exactly
+13 read-only closed-world tools; Full-control exposes exactly 23 tools with
+catalog-matched Schemas and annotations. On 2026-08-28, the WSL2 preflight,
+Codex 0.150.1 runtime/Schema probe, real App Server handshake, real development
+E2E, digest-pinned OCI verification, exact cleanup proof, and both MCP scans
+passed. The complete WSL2 suite passed 158/158 tests and the dependency audit
+reported zero vulnerabilities. ChatGPT Web remains a separate `NOT_RUN` track;
+therefore the result is Local Ready, not Production Ready.

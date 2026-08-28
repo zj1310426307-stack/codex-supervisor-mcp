@@ -74,6 +74,13 @@ test("stable shape gate validates nested turn and approval fields", () => {
         }
       }
     },
+    "ThreadStartParams.json": {
+      properties: {
+        approvalPolicy: { enum: ["untrusted", "on-request", "never"] },
+        sandbox: { enum: ["read-only", "workspace-write", "danger-full-access"] },
+        approvalsReviewer: { enum: ["user", "auto_review"] }
+      }
+    },
     "TurnStartedNotification.json": { required: ["turn"], properties: { turn } },
     "TurnCompletedNotification.json": { required: ["turn"], properties: { turn } },
     "CommandExecutionRequestApprovalParams.json": approval,
@@ -83,7 +90,7 @@ test("stable shape gate validates nested turn and approval fields", () => {
   };
   const valid = validateRequiredProtocolShapes(files);
   assert.equal(valid.compatible, true);
-  assert.equal(valid.validatedShapes.length, 7);
+  assert.equal(valid.validatedShapes.length, 8);
 
   const malformed: Record<string, any> = structuredClone(files);
   malformed["TurnCompletedNotification.json"].properties.turn = {

@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "runtime": {
+    "engine": "docker",
+    "image": "local/codex-supervisor-verifier@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "user": "65532:65532",
+    "pidsLimit": 128,
+    "memoryBytes": 1073741824,
+    "cpus": 1,
+    "tmpfsSizeBytes": 67108864,
+    "engineArguments": []
+  },
+  "environmentAllowlist": [
+    "CI",
+    "NODE_ENV"
+  ],
+  "profiles": {
+    "node-project": {
+      "recipes": [
+        {
+          "id": "typecheck",
+          "program": "npm",
+          "args": ["run", "typecheck"],
+          "cwd": ".",
+          "timeoutMs": 120000,
+          "required": true
+        },
+        {
+          "id": "test",
+          "program": "npm",
+          "args": ["test"],
+          "cwd": ".",
+          "timeoutMs": 300000,
+          "required": true
+        }
+      ]
+    }
+  }
+}

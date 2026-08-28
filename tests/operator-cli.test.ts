@@ -85,7 +85,7 @@ test("operator start routes a contract through the shared facade after confirmat
   assert.deepEqual(calls[0].input, {
     workspace: "C:/repo",
     contract: { contractVersion: "1.0", objective: "test" },
-    toolSurfaceVersion: "0.3.0"
+    toolSurfaceVersion: "0.4.0"
   });
   assert.match(output[0], /"taskId": "TASK-1"/);
 });
@@ -176,7 +176,7 @@ test("operator accept forwards an exact snapshot and per-criterion confirmations
       criterionConfirmations: [
         { criterionId: "AC-1", evidence: "Passing verifier run plus manual review" }
       ],
-      toolSurfaceVersion: "0.3.0"
+      toolSurfaceVersion: "0.4.0"
     }
   });
 });
@@ -269,7 +269,7 @@ test("operator reconcile forwards only runId, optional taskId, and surface versi
   );
   assert.deepEqual(calls[0], {
     name: "reconcileVerifier",
-    input: { runId, taskId: "TASK-1", toolSurfaceVersion: "0.3.0" }
+    input: { runId, taskId: "TASK-1", toolSurfaceVersion: "0.4.0" }
   });
 });
 

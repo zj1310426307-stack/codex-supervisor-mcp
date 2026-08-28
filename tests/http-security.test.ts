@@ -120,6 +120,29 @@ test("loopback and non-loopback configuration enforce secure defaults", () => {
   assert.equal(local.host, "127.0.0.1");
   assert.ok(local.allowedHosts.includes("127.0.0.1"));
   assert.equal(local.codexExperimentalApi, false);
+  assert.equal(local.codexModel, undefined);
+  assert.equal(loadConfig({
+    CODEX_WORKSPACE_ROOTS: "D:\\work",
+    CODEX_BIN: "codex",
+    CODEX_MODEL: "  gpt-5.4-mini  "
+  }).codexModel, "gpt-5.4-mini");
+  assert.equal(local.controlEnabled, false);
+  for (const placeholder of [
+    "changeme",
+    "replace-me",
+    "replace-with-a-long-random-secret",
+    "example",
+    "example-token",
+    "test-token",
+    "default",
+    "password"
+  ]) {
+    assert.throws(() => loadConfig({
+      MCP_BEARER_TOKEN: placeholder,
+      CODEX_WORKSPACE_ROOTS: "D:\\work",
+      CODEX_BIN: "codex"
+    }), /placeholder|at least 32 bytes/);
+  }
 });
 
 test("Host, Origin, and bearer token are evaluated independently", () => {

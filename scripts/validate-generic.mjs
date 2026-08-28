@@ -30,7 +30,7 @@ for (const required of [
 
 const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
 if (packageJson.name !== "codex-supervisor-mcp") failures.push("package.json:name must be codex-supervisor-mcp");
-if (packageJson.version !== "0.3.0") failures.push(`package.json:version expected 0.3.0, received ${packageJson.version}`);
+if (packageJson.version !== "0.4.0") failures.push(`package.json:version expected 0.4.0, received ${packageJson.version}`);
 if (packageJson.private !== true) failures.push("package.json:private must remain true");
 
 for (const command of ["typecheck", "test", "build", "validate:phase03", "validate:security", "smoke:codex", "e2e:codex"]) {

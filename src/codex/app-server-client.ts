@@ -53,6 +53,7 @@ export interface CodexAppServerClientOptions {
   retryJitter?: number;
   shutdownTimeoutMs?: number;
   killTimeoutMs?: number;
+  stdoutDrainTimeoutMs?: number;
   maxStdoutLineBytes?: number;
   maxStderrLineBytes?: number;
   clientInfo?: { name: string; title: string; version: string };
@@ -213,6 +214,7 @@ export class CodexAppServerClient extends EventEmitter {
   private readonly retryJitter: number;
   private readonly shutdownTimeoutMs: number;
   private readonly killTimeoutMs: number;
+  private readonly stdoutDrainTimeoutMs: number;
   private readonly maxStdoutLineBytes: number;
   private readonly maxStderrLineBytes: number;
   private readonly clientInfo: { name: string; title: string; version: string };
@@ -241,6 +243,7 @@ export class CodexAppServerClient extends EventEmitter {
     this.retryJitter = jitter;
     this.shutdownTimeoutMs = positiveInteger(options.shutdownTimeoutMs, 5_000, "shutdownTimeoutMs");
     this.killTimeoutMs = positiveInteger(options.killTimeoutMs, 2_000, "killTimeoutMs");
+    this.stdoutDrainTimeoutMs = positiveInteger(options.stdoutDrainTimeoutMs, 5_000, "stdoutDrainTimeoutMs");
     this.maxStdoutLineBytes = positiveInteger(options.maxStdoutLineBytes, 1024 * 1024, "maxStdoutLineBytes");
     this.maxStderrLineBytes = positiveInteger(options.maxStderrLineBytes, 16 * 1024, "maxStderrLineBytes");
     this.clientInfo = options.clientInfo ?? CODEX_APP_SERVER_CLIENT_INFO;
@@ -442,7 +445,7 @@ export class CodexAppServerClient extends EventEmitter {
   ): Promise<ChildExitOutcome> {
     if (!lifecycle) return Promise.reject(new Error("codex app-server lifecycle was not registered"));
     if (!lifecycle.drained) {
-      lifecycle.drained = Promise.all([lifecycle.exit, lifecycle.stdoutClosed]).then(([outcome]) => {
+      lifecycle.drained = Promise.all([lifecycle.exit, this.requireStdoutClosed(lifecycle.stdoutClosed)]).then(([outcome]) => {
         this.emit("exit", outcome);
         return outcome;
       });
@@ -853,6 +856,25 @@ export class CodexAppServerClient extends EventEmitter {
           timer = setTimeout(() => resolve(undefined), timeoutMs);
         })
       ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  private async requireStdoutClosed(stdoutClosed: Promise<void>): Promise<void> {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      const closed = await Promise.race([
+        stdoutClosed.then(() => true),
+        new Promise<false>((resolve) => {
+          timer = setTimeout(() => resolve(false), this.stdoutDrainTimeoutMs);
+        })
+      ]);
+      if (!closed) {
+        throw new Error(
+          `codex app-server stdout did not close within ${this.stdoutDrainTimeoutMs}ms; restart remains blocked`
+        );
+      }
     } finally {
       if (timer) clearTimeout(timer);
     }

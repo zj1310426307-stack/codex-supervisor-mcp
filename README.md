@@ -1,6 +1,6 @@
 # codex-supervisor-mcp
 
-`codex-supervisor-mcp` v0.3.0 is an independent MCP control plane for one division of responsibility:
+`codex-supervisor-mcp` v0.4.0 is an independent MCP control plane for one division of responsibility:
 
 > ChatGPT supervises; Codex implements inside an isolated worktree; a human owns commit, push, merge, release, and deployment.
 
@@ -29,9 +29,11 @@ The machine-readable source and hashes are exported to `artifacts/tool-manifest.
 - Workspace snapshots include tracked, staged, unstaged, ordinary untracked, Git-ignored, and symbolic-link state under explicit resource limits. Passing evidence is tied to an exact snapshot.
 - Contract path rules are enforced forbidden-first against both sides of renames/copies and all changes since the task base commit.
 - Verification creates evidence candidates only. Acceptance re-captures the live worktree and requires an exact snapshot ID plus one explicit evidence confirmation for every contract criterion.
-- Approval requests are classified from their official structured fields. Session-wide acceptance, network grants, policy amendments, extra permissions, publication/history commands, and out-of-worktree paths are not authorized.
+- Approval requests are classified from their official structured fields. The Supervisor can return only exact single-use `accept`, `decline`, or `cancel` decisions; it never selects an offered execpolicy/network-policy amendment or a session-wide decision. Network grants, extra permissions, publication/history commands, and out-of-worktree paths remain blocked.
 - Cleanup is allowed only for an eligible terminal task and removes only its validated task worktree.
 - Secrets and unbounded event/log payloads are redacted before persistence or remote return.
+- Restricted mode is the default. Obvious bearer-token placeholders are rejected, and MCP responses, the ledger, Operator CLI, verifier output, and live artifacts reuse one redaction core before truncation.
+- Unknown Codex version/Schema compatibility blocks control operations while redacted health, diagnostics, task evidence, and runtime-capability reads remain available.
 
 ## Prerequisites and setup
 
@@ -39,18 +41,20 @@ The machine-readable source and hashes are exported to `artifacts/tool-manifest.
 - Git
 - A compatible Codex CLI installed and signed in by the operator
 - One or more local Git repositories below `CODEX_WORKSPACE_ROOTS`
+- WSL2 is the recommended complete local runtime; Docker or Podman is required only for independent verification
 
 The service does not install or repair Codex CLI, modify `PATH`, aliases, the registry, or operating-system application registrations.
 
 ```bash
 npm install
 copy .env.example .env
+npm run preflight:wsl2
 npm run check
 ```
 
 Node does not automatically load `.env`; export the variables using the process manager or shell that starts the service. The default endpoint is `http://127.0.0.1:8787/mcp`.
 
-Official Codex documentation describes App Server as the client-integration protocol and specifies JSONL over stdio by default. A client initializes once, waits for the response, then sends `initialized`: [Codex App Server](https://learn.chatgpt.com/docs/app-server). CLI installation and sign-in are operator prerequisites: [Codex CLI](https://learn.chatgpt.com/docs/codex/cli).
+Official Codex documentation describes App Server as the client-integration protocol and specifies JSONL over stdio by default. A client initializes once, waits for the response, then sends `initialized`: [Codex App Server](https://learn.chatgpt.com/docs/app-server). CLI installation and sign-in are operator prerequisites: [Codex CLI](https://learn.chatgpt.com/docs/codex/cli). The supported Windows Linux baseline is documented by OpenAI at [Codex on WSL](https://learn.chatgpt.com/docs/windows/wsl).
 
 ## Typical lifecycle
 
@@ -73,7 +77,8 @@ npm run typecheck
 npm test
 npm run build
 npm run validate:generic
-npm run validate:phase03
+npm run smoke:mcp
+npm run validate:phase04
 npm run validate:tool-surface
 npm run validate:version-consistency
 npm run validate:security
@@ -86,7 +91,13 @@ CODEX_SUPERVISOR_LIVE_TEST=1
 CODEX_SUPERVISOR_LIVE_ACK=I_UNDERSTAND_THIS_STARTS_A_LOCAL_CODEX_PROCESS
 ```
 
-Development E2E additionally requires `CODEX_SUPERVISOR_LIVE_E2E=1` and uses a newly created temporary Git repository with no remote. See `docs/ORCH-PHASE-03-LIVE-CODEX-E2E.md`.
+Development E2E additionally requires `CODEX_SUPERVISOR_LIVE_E2E=1`, a reviewed exact verifier image digest, and a newly created temporary Git repository with no remote. See `docs/ORCH-PHASE-04-LIVE-CODEX-E2E.md`.
+
+The 2026-08-28 WSL2 local-live baseline is **PASS - LOCAL READY / CHATGPT WEB NOT_RUN**: Codex CLI 0.150.1 compatibility, real App Server handshake, real development E2E, digest-pinned OCI verification, cleanup, and both MCP scans passed. The successful E2E used the explicit optional `CODEX_MODEL=gpt-5.4-mini`; the default model remains unset. This is not a Production Ready claim because the Secure MCP Tunnel and real ChatGPT Web connector tracks have not run.
+
+`npm run smoke:mcp` is deterministic local evidence but uses the actual HTTP MCP server and official SDK client. It writes Restricted and Full scan artifacts under `artifacts/validation/`. The real Codex handshake writes `artifacts/live/<run-id>/handshake-summary.json` only after explicit opt-in.
+
+The root Dockerfile packages only the experimental MCP service. It is not the recommended full Supervisor runtime and contains no Codex CLI, Git workflow, credentials, source repository, or persistent state by default. Run the Supervisor natively in WSL2 and use the separate verifier image workflow in `scripts/verifier/`.
 
 ## Documentation
 
@@ -94,5 +105,6 @@ Development E2E additionally requires `CODEX_SUPERVISOR_LIVE_E2E=1` and uses a n
 - State and supervision protocol: `docs/SUPERVISION-PROTOCOL.md`
 - Verification and recovery: `docs/VERIFICATION.md`, `docs/RECOVERY.md`
 - Secure operation and remote connectivity: `docs/SECURE-OPERATIONS.md`, `docs/SECURE-MCP-TUNNEL.md`
-- ChatGPT Web manual checks: `docs/CHATGPT-WEB-MANUAL-TEST.md`
-- Current validation record: `docs/ORCH-PHASE-03-VALIDATION.md`
+- WSL2 runtime and preflight: `docs/WSL2-RUNTIME.md`
+- ChatGPT Web operator acceptance: `docs/ORCH-PHASE-04-CHATGPT-WEB-ACCEPTANCE.md`
+- Current validation record: `docs/ORCH-PHASE-04-VALIDATION.md`

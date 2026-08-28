@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current: v0.3.0
+## Current: v0.4.0
 
 - Stable App Server schema compatibility gate
 - Structured contracts and strict legacy input compatibility
@@ -10,8 +10,13 @@
 - Restricted 13-tool and Full-control 23-tool MCP surfaces
 - Secure loopback-first HTTP and `supervisorctl` fallback
 - Opt-in real handshake/development harnesses with honest evidence boundaries
+- First-class WSL2 read-only preflight and local-live operating baseline
+- Shared end-to-end credential redaction and placeholder-token rejection
+- Actual Streamable HTTP scans through the official MCP client SDK
+- Local digest-pinned verifier image build/inspection workflow
+- ChatGPT Web operator acceptance template with Restricted-first posture
 
-## Candidate v0.4 work
+## Candidate post-v0.4 work
 
 - First-class OAuth resource-server integration where required by the deployment environment
 - Multiple authenticated human supervisors with explicit ownership transfer

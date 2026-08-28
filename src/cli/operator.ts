@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { redactText } from "../core/redaction.js";
 import type { SupervisorFacade, TaskDecisionInput } from "../mcp/facade.js";
 import { TOOL_SURFACE_VERSION, taskDecisionSchema } from "../mcp/tool-catalog.js";
 
@@ -107,13 +108,7 @@ function serialize(value: unknown, json: boolean): string {
 }
 
 export function redactOperatorText(value: string): string {
-  return value
-    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "[REDACTED]")
-    .replace(/\b(?:sk|sess|ghp|github_pat)_[A-Za-z0-9_-]{8,}\b/g, "[REDACTED]")
-    .replace(
-      /"([^"\\]*(?:authorization|cookie|token|secret|password|private.?key|api.?key)[^"\\]*)"\s*:\s*"(?:[^"\\]|\\.)*"/gi,
-      '"$1": "[REDACTED]"'
-    );
+  return redactText(value);
 }
 
 function exactWordCount(parsed: ParsedArguments): void {

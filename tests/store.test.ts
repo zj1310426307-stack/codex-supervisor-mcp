@@ -56,6 +56,23 @@ test("task store serializes concurrent writes without corrupting the ledger", as
   assert.deepEqual(new Set(reloaded.list().map((value) => value.id)), new Set(["a", "b", "c"]));
 });
 
+test("persisted task events use the shared redaction core", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "codex-supervisor-store-redaction-"));
+  const file = path.join(dir, "state.json");
+  const value = task("redacted-event");
+  value.eventSeq = 1;
+  value.events = [{
+    seq: 1,
+    at: new Date().toISOString(),
+    method: "test/event",
+    payload: { nested: [{ authorization: "Bearer persisted-secret" }] }
+  }];
+  await new TaskStore(file).put(value);
+  const persisted = await fs.readFile(file, "utf8");
+  assert.doesNotMatch(persisted, /persisted-secret/);
+  assert.match(persisted, /\[REDACTED\]/);
+});
+
 test("active tasks become stale after supervisor restart", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "codex-supervisor-store-"));
   const file = path.join(dir, "state.json");

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { CODEX_SUPERVISOR_THREAD_OPTIONS } from "./protocol-values.js";
 
 export interface CodexRpcRequest {
   id: string | number;
@@ -298,6 +299,7 @@ interface LocatedSchema {
 
 export const REQUIRED_PROTOCOL_SHAPES = Object.freeze([
   "initialize.params.clientInfo",
+  "thread/start.params.supervisorOptions",
   "turn/started.params.turn",
   "turn/completed.params.turn",
   "item/commandExecution/requestApproval.params",
@@ -519,6 +521,20 @@ function validateInitialize(files: Record<string, unknown>): string | undefined 
   return undefined;
 }
 
+function validateThreadStartOptions(files: Record<string, unknown>): string | undefined {
+  const schema = locateNamedSchema(files, "ThreadStartParams");
+  if (!schema) return "ThreadStartParams schema is missing";
+  const shape = objectShape(files, schema);
+  for (const [field, requiredValue] of Object.entries(CODEX_SUPERVISOR_THREAD_OPTIONS)) {
+    const property = shape.properties.get(field);
+    if (!property) return `ThreadStartParams.${field} is missing`;
+    if (!stringValues(files, property).has(requiredValue)) {
+      return `ThreadStartParams.${field} must allow ${requiredValue}`;
+    }
+  }
+  return undefined;
+}
+
 function validateTurn(files: Record<string, unknown>, schemaName: string): string | undefined {
   const schema = locateNamedSchema(files, schemaName);
   if (!schema) return `${schemaName} schema is missing`;
@@ -552,6 +568,7 @@ function validateDecision(files: Record<string, unknown>, schemaName: string): s
 export function validateRequiredProtocolShapes(files: Record<string, unknown>): ProtocolShapeValidationReport {
   const checks: Array<readonly [string, () => string | undefined]> = [
     ["initialize.params.clientInfo", () => validateInitialize(files)],
+    ["thread/start.params.supervisorOptions", () => validateThreadStartOptions(files)],
     ["turn/started.params.turn", () => validateTurn(files, "TurnStartedNotification")],
     ["turn/completed.params.turn", () => validateTurn(files, "TurnCompletedNotification")],
     ["item/commandExecution/requestApproval.params", () => requireStringFields(

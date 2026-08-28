@@ -28,9 +28,15 @@ export interface CodexRuntimeProbeOptions {
 export type CodexCommandRunner = (command: string, args: string[], timeoutMs: number) => Promise<string>;
 
 export interface CodexRuntimeProbeResult {
+  checkedAt: string;
   version: string;
   schemaHash: string;
   schemaFileCount: number;
+  schemaGeneration: {
+    command: "codex app-server generate-json-schema";
+    isolatedTemporaryDirectory: true;
+  };
+  experimentalApiRequested: boolean;
   capabilities: ProtocolCapabilityReport;
   binding?: ProtocolRuntimeBinding;
 }
@@ -68,9 +74,15 @@ export async function probeCodexRuntime(options: CodexRuntimeProbeOptions): Prom
     assertProtocolCapabilities(capabilities);
     const binding = createProtocolRuntimeBinding(version, schema.hash, capabilities);
     return {
+      checkedAt: new Date().toISOString(),
       version,
       schemaHash: schema.hash,
       schemaFileCount: Object.keys(schema.files).length,
+      schemaGeneration: {
+        command: "codex app-server generate-json-schema",
+        isolatedTemporaryDirectory: true
+      },
+      experimentalApiRequested: options.experimentalApi === true,
       capabilities,
       binding
     };

@@ -15,7 +15,15 @@ Verification configuration version 2 has no host-process compatibility path. Eve
 
 The configured engine, daemon, and exact local image are probed before a run is created. If Docker/Podman or the digest image is unavailable, the operation fails with RUNTIME_UNAVAILABLE. It never executes the recipe on the Supervisor host as a fallback.
 
-The example configuration contains a syntactically valid placeholder digest, not a published image identity. Operators must replace it with a reviewed, locally present image whose dependencies are already installed. Recipes must be read-only-worktree compatible: scripts that write `dist`, coverage, caches, lockfiles, or generated sources into the repository are unsupported unless they are reconfigured to write only under the bounded container tmpfs. Pulling or installing packages into the repository during a run is also unsupported.
+Both example configurations contain a syntactically valid all-zero template
+digest, not a real image identity or passing evidence. Operators must build or
+otherwise obtain a reviewed local image, run
+`scripts/verifier/inspect-image.sh image@sha256:<digest>`, and place only the
+proven exact reference in an untracked private configuration. Recipes must be
+read-only-worktree compatible: scripts that write `dist`, coverage, caches,
+lockfiles, or generated sources into the repository are unsupported unless they
+are reconfigured to write only under the bounded container tmpfs. Pulling or
+installing packages into the repository during a run is also unsupported.
 
 ## Ownership and termination proof
 

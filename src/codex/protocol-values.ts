@@ -1,8 +1,15 @@
 export const CODEX_APP_SERVER_CLIENT_INFO = Object.freeze({
   name: "codex_supervisor_mcp",
   title: "Codex Supervisor MCP",
-  version: "0.3.0"
+  version: "0.4.0"
 });
+
+/** Stable App Server wire values applied to Supervisor-owned Codex threads. */
+export const CODEX_SUPERVISOR_THREAD_OPTIONS = Object.freeze({
+  approvalPolicy: "untrusted",
+  sandbox: "workspace-write",
+  approvalsReviewer: "user"
+} as const);
 
 /** Methods which are safe to repeat after an overload or transport timeout. */
 export const READ_ONLY_CODEX_METHODS = new Set([

@@ -14,3 +14,9 @@ Recovery is evidence-driven and scoped.
 - Cleanup validates the exact recorded path and branch, shared Git common directory, source/worktree separation, terminal task state, clean worktree, and absence of active writers/verifiers.
 
 Do not repair a ledger with `git reset`, `git clean`, state deletion, process-name-wide termination, or manual lease removal. If proof is unavailable, leave the task blocked and copy its diff/evidence for human review.
+
+An App Server version or Schema compatibility failure is not recoverable by
+guessing an older method or enabling experimental APIs. Keep Restricted health,
+task evidence, and runtime-capability diagnostics available; block control until
+the operator supplies a compatible CLI and a fresh probe passes. Likewise, an
+unavailable Docker daemon or digest image never authorizes host verification.

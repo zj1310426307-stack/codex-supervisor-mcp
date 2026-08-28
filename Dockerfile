@@ -9,6 +9,8 @@ RUN npm run build
 FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
+LABEL io.openai.codex-supervisor.image-scope="experimental-mcp-server-only"
+LABEL io.openai.codex-supervisor.includes-codex="false"
 COPY package*.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 COPY --from=build /app/dist ./dist

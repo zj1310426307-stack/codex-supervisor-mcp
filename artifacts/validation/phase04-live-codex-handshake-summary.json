@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "track": "real-codex-handshake",
+  "status": "PASS",
+  "runId": "codex-handshake-2026-08-28T08-06-47-204Z",
+  "runAt": "2026-08-28T08:06:47.671Z",
+  "platform": "Ubuntu WSL2 linux/x64",
+  "realProcess": true,
+  "developmentTurnStarted": false,
+  "codexVersion": "codex-cli 0.150.1",
+  "schemaHash": "f9d365c1780056b70454dcab8bd6ff21e81d342ec72760198ce521de9a0f7cf8",
+  "schemaFileCount": 295,
+  "connectionGeneration": 1,
+  "initialized": true,
+  "initializeResponseAwaitedBeforeInitialized": true,
+  "initializedNotificationSentOnce": true,
+  "stdinKeptOpenThroughReadOnlyRpc": true,
+  "readOnlyRpc": "account/read",
+  "stdinClosedOnlyDuringShutdown": true,
+  "stdoutDrained": true,
+  "processExitProven": true,
+  "secretsIncluded": false
+}

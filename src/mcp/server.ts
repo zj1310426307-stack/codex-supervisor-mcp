@@ -1,4 +1,5 @@
 import { McpServer, fromJsonSchema } from "@modelcontextprotocol/server";
+import { redact, redactAndTruncate } from "../core/redaction.js";
 import type { CriterionConfirmationInput, SupervisorFacade } from "./facade.js";
 import {
   SUPERVISOR_TOOLS,
@@ -9,47 +10,26 @@ import {
 } from "./tool-catalog.js";
 
 const MAX_RESULT_CHARS = 100_000;
-const SECRET_KEY = /(?:authorization|cookie|token|secret|password|private.?key|api.?key)/i;
-const SECRET_VALUE_PATTERNS = [
-  /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi,
-  /\b(?:sk|sess|ghp|github_pat)_[A-Za-z0-9_-]{8,}\b/g,
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g
-];
-
-function redactValue(value: unknown, key?: string, seen = new WeakSet<object>()): unknown {
-  if (key && SECRET_KEY.test(key)) return "[REDACTED]";
-  if (typeof value === "string") {
-    return SECRET_VALUE_PATTERNS.reduce((current, pattern) => current.replace(pattern, "[REDACTED]"), value);
-  }
-  if (!value || typeof value !== "object") return value;
-  if (seen.has(value)) return "[CIRCULAR]";
-  seen.add(value);
-  if (Array.isArray(value)) return value.map((entry) => redactValue(entry, undefined, seen));
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([childKey, child]) => [
-      childKey,
-      redactValue(child, childKey, seen)
-    ])
-  );
-}
 
 function structured(value: unknown): Record<string, unknown> {
-  const safe = redactValue(value);
+  const safe = redact(value);
   if (safe && typeof safe === "object" && !Array.isArray(safe)) return safe as Record<string, unknown>;
   return { value: safe };
 }
 
-function result(value: unknown) {
+function boundedResultPayload(value: unknown): Record<string, unknown> {
   const payload = structured(value);
   const serialized = JSON.stringify(payload, null, 2);
-  const boundedPayload =
-    serialized.length <= MAX_RESULT_CHARS
-      ? payload
-      : {
-          truncated: true,
-          originalChars: serialized.length,
-          preview: serialized.slice(0, MAX_RESULT_CHARS)
-        };
+  if (serialized.length <= MAX_RESULT_CHARS) return payload;
+  return {
+    truncated: true,
+    originalChars: serialized.length,
+    preview: redactAndTruncate(serialized, MAX_RESULT_CHARS).text
+  };
+}
+
+export function mcpSuccessResult(value: unknown) {
+  const boundedPayload = boundedResultPayload(value);
   const bounded = JSON.stringify(boundedPayload, null, 2);
   return {
     content: [{ type: "text" as const, text: bounded }],
@@ -57,11 +37,11 @@ function result(value: unknown) {
   };
 }
 
-function errorResult(error: unknown) {
+export function mcpErrorResult(error: unknown) {
   const record = error && typeof error === "object" ? (error as Record<string, unknown>) : undefined;
   const code = typeof record?.code === "string" ? record.code : "SUPERVISOR_OPERATION_FAILED";
   const message = error instanceof Error ? error.message : String(error);
-  const payload = structured({ ok: false, error: { code, message } });
+  const payload = boundedResultPayload({ ok: false, error: { code, message } });
   return {
     isError: true,
     content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
@@ -213,9 +193,9 @@ export function createSupervisorMcp(facade: SupervisorFacade): McpServer {
       async (rawInput) => {
         try {
           const input = tool.inputSchema.parse(rawInput ?? {}) as Record<string, unknown>;
-          return result(await handler(input));
+          return mcpSuccessResult(await handler(input));
         } catch (error) {
-          return errorResult(error);
+          return mcpErrorResult(error);
         }
       }
     );

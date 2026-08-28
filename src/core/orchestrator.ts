@@ -4,6 +4,7 @@ import type { Config } from "../config.js";
 import type { TaskDecisionInput } from "../mcp/facade.js";
 import { CodexAppServerClient, type RpcRequest } from "../codex/app-server-client.js";
 import type { ProtocolRuntimeBinding } from "../codex/protocol-capabilities.js";
+import { CODEX_SUPERVISOR_THREAD_OPTIONS } from "../codex/protocol-values.js";
 import { probeCodexRuntime, type CodexRuntimeProbeResult } from "../codex/runtime-probe.js";
 import type {
   PendingApproval,
@@ -52,7 +53,7 @@ import { WorktreeManager, type WorktreeRecord } from "./worktree-manager.js";
 import { reconcileVerifierRun } from "../verification/verifier-reconciler.js";
 import { assertOciRuntimeAvailable } from "../verification/execution-backend.js";
 
-const TOOL_SURFACE_VERSION = "0.3.0";
+const TOOL_SURFACE_VERSION = "0.4.0";
 
 interface OrchestratorDependencies {
   client?: CodexAppServerClient;
@@ -831,9 +832,8 @@ export class Orchestrator {
       this.assertControlEnabled();
       const started = await this.client.request("thread/start", {
         cwd: isolated.worktree,
-        approvalPolicy: "unlessTrusted",
-        sandbox: "workspaceWrite",
-        approvalsReviewer: "user",
+        ...CODEX_SUPERVISOR_THREAD_OPTIONS,
+        ...(this.config.codexModel ? { model: this.config.codexModel } : {}),
         serviceName: "codex_supervisor_mcp"
       });
       task.threadId = extractId(started, "thread");
@@ -895,9 +895,7 @@ export class Orchestrator {
     const resumed = await this.client.request("thread/resume", {
       threadId: task.threadId,
       cwd: taskWorktree(task),
-      approvalPolicy: "unlessTrusted",
-      sandbox: "workspaceWrite",
-      approvalsReviewer: "user"
+      ...CODEX_SUPERVISOR_THREAD_OPTIONS
     });
     task.threadId = extractId(resumed, "thread");
     const pendingStart = await this.registerPendingTurnStart(task);
@@ -1689,6 +1687,20 @@ export class Orchestrator {
     if (!this.config.controlEnabled) {
       throw new SupervisorError("INVALID_INPUT", "Supervisor is running with control tools disabled", 403);
     }
+    const runtime = this.runtimeCapabilities;
+    if (!runtime?.compatible) {
+      throw new SupervisorError(
+        runtime?.error ? "RUNTIME_UNAVAILABLE" : "PROTOCOL_INCOMPATIBLE",
+        runtime?.error ?? "Codex App Server compatibility is unknown or incompatible; control is fail-closed",
+        503,
+        runtime?.capabilities
+          ? {
+              missingMethods: runtime.capabilities.missingMethods,
+              shapeErrors: runtime.capabilities.shapeErrors
+            }
+          : undefined
+      );
+    }
   }
 
   private async runTaskOperation<T>(taskId: string, name: string, operation: () => Promise<T>): Promise<T> {
@@ -1716,6 +1728,16 @@ export class Orchestrator {
   private async waitForTaskOperation(taskId: string, method: string): Promise<void> {
     const active = this.taskOperations.get(taskId);
     if (!active || this.replayingPendingStartTaskId === taskId) return;
+    if (
+      active.name === "start" &&
+      ["thread/started", "mcpServer/startupStatus/updated"].includes(method)
+    ) {
+      // App Server can emit these non-authoritative thread startup telemetry
+      // notifications immediately after thread/start responds. Waiting for the
+      // enclosing start operation here would deadlock that operation when it
+      // later drains the protocol queue before binding the exact turn id.
+      return;
+    }
     if (
       method === "turn/completed" &&
       ["interrupt", "decision:block", "decision:cancel"].includes(active.name)
@@ -1884,7 +1906,16 @@ export class Orchestrator {
       await this.client.respondError(request.id, -32602, `No supervised task for Codex thread: ${threadId ?? "unknown"}`);
       return;
     }
-    const activeOperation = this.taskOperations.get(task.id);
+    let activeOperation = this.taskOperations.get(task.id);
+    if (activeOperation?.name === "approval-decision") {
+      // App Server may synchronously issue its next approval as soon as it
+      // receives the prior single-use response. That request belongs to the
+      // same exact owned turn; queue it until the prior decision has been
+      // durably recorded instead of treating normal request chaining as a
+      // writer conflict. No response or authority is granted by this wait.
+      await activeOperation.done;
+      activeOperation = this.taskOperations.get(task.id);
+    }
     if (activeOperation) {
       await this.client.respondError(request.id, -32602, `Task operation ${activeOperation.name} is in progress`);
       const pending = this.pendingTurnStart;
@@ -2365,39 +2396,49 @@ export class Orchestrator {
     // The stream may deliver started/completed before the response. Those
     // notifications are buffered under a single durable nonce and replayed
     // only after the response binds the exact remote turn id.
-    await this.notificationQueue;
-    const pending = this.pendingTurnStart;
-    if (!pending || pending.record.nonce !== nonce || pending.record.taskId !== taskId) {
-      throw new SupervisorError("LEASE_CONFLICT", "turn/start response has no matching pending start identity", 409);
-    }
-    if (pending.record.threadId !== threadId || (pending.record.observedTurnId && pending.record.observedTurnId !== turnId)) {
-      await this.abandonPendingTurnStart(taskId, nonce, "turn/start response conflicted with buffered protocol identity");
-      throw new SupervisorError("LEASE_CONFLICT", "turn/start response conflicts with buffered turn identity", 409);
-    }
-    const buffered = [...pending.bufferedNotifications];
-    const deferredPriorTurnTelemetry = [...pending.deferredPriorTurnTelemetry];
-    const current = this.getTask(taskId);
-    if (current.threadId !== threadId) {
-      await this.abandonPendingTurnStart(taskId, nonce, "turn/start response thread identity mismatch");
-      throw new SupervisorError("LEASE_CONFLICT", "turn/start response does not own the supervised thread", 409);
-    }
-    this.pendingTurnStart = undefined;
-    current.pendingTurnStart = undefined;
+    const previousReplayTaskId = this.replayingPendingStartTaskId;
     this.replayingPendingStartTaskId = taskId;
     try {
-      await this.beginTurn(current, turnId);
-      for (const telemetry of deferredPriorTurnTelemetry) {
-        await this.appendEvent(current, "supervisor/deferredPriorTurnTelemetry", telemetry);
+      // A thread/started notification can arrive immediately after the
+      // thread/start response while durable thread state is still being
+      // written. Mark this task as replaying before draining the queue so that
+      // such telemetry is buffered instead of waiting on the start operation
+      // that is itself waiting for this drain.
+      await this.notificationQueue;
+      const pending = this.pendingTurnStart;
+      if (!pending || pending.record.nonce !== nonce || pending.record.taskId !== taskId) {
+        throw new SupervisorError("LEASE_CONFLICT", "turn/start response has no matching pending start identity", 409);
       }
-      if (deferredPriorTurnTelemetry.length > 0) await this.store.put(current);
-      for (const notification of buffered) await this.onNotification(notification);
-      return this.getTask(taskId);
-    } catch (error) {
-      const latest = this.store.get(taskId) ?? current;
-      await this.loseTurnOwnership(latest, "Buffered turn/start protocol sequence could not be bound safely", "turn/start");
-      throw error;
+      if (pending.record.threadId !== threadId || (pending.record.observedTurnId && pending.record.observedTurnId !== turnId)) {
+        await this.abandonPendingTurnStart(taskId, nonce, "turn/start response conflicted with buffered protocol identity");
+        throw new SupervisorError("LEASE_CONFLICT", "turn/start response conflicts with buffered turn identity", 409);
+      }
+      const buffered = [...pending.bufferedNotifications];
+      const deferredPriorTurnTelemetry = [...pending.deferredPriorTurnTelemetry];
+      const current = this.getTask(taskId);
+      if (current.threadId !== threadId) {
+        await this.abandonPendingTurnStart(taskId, nonce, "turn/start response thread identity mismatch");
+        throw new SupervisorError("LEASE_CONFLICT", "turn/start response does not own the supervised thread", 409);
+      }
+      this.pendingTurnStart = undefined;
+      current.pendingTurnStart = undefined;
+      try {
+        await this.beginTurn(current, turnId);
+        for (const telemetry of deferredPriorTurnTelemetry) {
+          await this.appendEvent(current, "supervisor/deferredPriorTurnTelemetry", telemetry);
+        }
+        if (deferredPriorTurnTelemetry.length > 0) await this.store.put(current);
+        for (const notification of buffered) await this.onNotification(notification);
+        return this.getTask(taskId);
+      } catch (error) {
+        const latest = this.store.get(taskId) ?? current;
+        await this.loseTurnOwnership(latest, "Buffered turn/start protocol sequence could not be bound safely", "turn/start");
+        throw error;
+      }
     } finally {
-      this.replayingPendingStartTaskId = undefined;
+      if (this.replayingPendingStartTaskId === taskId) {
+        this.replayingPendingStartTaskId = previousReplayTaskId;
+      }
     }
   }
 

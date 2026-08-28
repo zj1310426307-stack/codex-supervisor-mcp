@@ -1,0 +1,1025 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "checkedAt": "2026-08-28T04:59:35.518Z",
+  "mode": "full",
+  "transport": "streamable-http",
+  "actualHttpListener": true,
+  "sdkClient": "@modelcontextprotocol/client@2.0.0",
+  "negotiatedProtocolVersion": "2025-11-25",
+  "serverVersion": {
+    "name": "codex-supervisor-mcp",
+    "version": "0.4.0"
+  },
+  "toolCount": 23,
+  "toolSchemaHash": "b3b0284da37852d182a0e1d8b403634c176b41d468dfdac7290485913c4ecc00",
+  "catalogSchemaHash": "b3b0284da37852d182a0e1d8b403634c176b41d468dfdac7290485913c4ecc00",
+  "annotationsValidated": true,
+  "schemasValidatedAgainstCatalog": true,
+  "health": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"status\": \"PASS\",\n  \"scanMode\": \"full\",\n  \"realCodexProcessStarted\": false,\n  \"toolSurfaceVersion\": \"0.4.0\",\n  \"toolSchemaHash\": \"b3b0284da37852d182a0e1d8b403634c176b41d468dfdac7290485913c4ecc00\",\n  \"toolCount\": 23,\n  \"mode\": \"full\"\n}"
+      }
+    ],
+    "structuredContent": {
+      "status": "PASS",
+      "scanMode": "full",
+      "realCodexProcessStarted": false,
+      "toolSurfaceVersion": "0.4.0",
+      "toolSchemaHash": "b3b0284da37852d182a0e1d8b403634c176b41d468dfdac7290485913c4ecc00",
+      "toolCount": 23,
+      "mode": "full"
+    }
+  },
+  "tools": [
+    {
+      "name": "codex_health",
+      "description": "Read Supervisor, Codex App Server, and frozen tool-surface health without starting a turn.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_list",
+      "description": "List bounded summaries of tasks known to the Supervisor.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_status",
+      "description": "Read the current Supervisor state for one Codex implementation task.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_events",
+      "description": "Read bounded task-ledger events after a sequence number.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "afterSeq": {
+            "default": 0,
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_wait",
+      "description": "Long-poll for a bounded task state or event change without mutating it.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "afterSeq": {
+            "default": 0,
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "timeoutMs": {
+            "default": 20000,
+            "maximum": 25000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_pending_approvals",
+      "description": "Read redacted pending approval summaries; this never resolves an approval.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_workspace_status",
+      "description": "Read bounded Git status evidence from the task's isolated worktree.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_workspace_diff",
+      "description": "Read a bounded Git diff from the task's isolated worktree.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_contract",
+      "description": "Read the immutable normalized Development Contract for a supervised task.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_evidence",
+      "description": "Read redacted contract, snapshot, verification, and decision evidence for human review.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_verification_profiles",
+      "description": "List trusted Supervisor-side verification profile metadata; no command input is accepted.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_runtime_capabilities",
+      "description": "Read stable Codex runtime and protocol capabilities without starting work or verification.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_verifier_status",
+      "description": "Read redacted owned verifier lease and scoped quarantine status.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_start",
+      "description": "Create an isolated task from a structured contract or the strict legacy compatibility form; Codex implements it.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "contract": {
+                "additionalProperties": false,
+                "properties": {
+                  "acceptanceCriteria": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "description": {
+                          "maxLength": 10000,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "evidence": {
+                          "maxLength": 10000,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "id": {
+                          "maxLength": 100,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "description"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 200,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "allowedChangePaths": {
+                    "items": {
+                      "maxLength": 1024,
+                      "minLength": 1,
+                      "pattern": "^(?!(?:[A-Za-z]:[\\\\/]|[\\\\/]{1,2}))(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$",
+                      "type": "string"
+                    },
+                    "maxItems": 500,
+                    "type": "array"
+                  },
+                  "clientRequestId": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "constraints": {
+                    "default": [],
+                    "items": {
+                      "maxLength": 10000,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 200,
+                    "type": "array"
+                  },
+                  "contractVersion": {
+                    "const": "1.0",
+                    "type": "string"
+                  },
+                  "forbiddenChangePaths": {
+                    "items": {
+                      "maxLength": 1024,
+                      "minLength": 1,
+                      "pattern": "^(?!(?:[A-Za-z]:[\\\\/]|[\\\\/]{1,2}))(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$",
+                      "type": "string"
+                    },
+                    "maxItems": 500,
+                    "type": "array"
+                  },
+                  "maxCorrectionPasses": {
+                    "default": 3,
+                    "maximum": 5,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "metadata": {
+                    "additionalProperties": {
+                      "maxLength": 10000,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "propertyNames": {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "objective": {
+                    "maxLength": 100000,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "plan": {
+                    "items": {
+                      "maxLength": 10000,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 200,
+                    "type": "array"
+                  },
+                  "requiredVerificationRecipes": {
+                    "default": [],
+                    "items": {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "type": "array"
+                  },
+                  "scope": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "in": {
+                        "items": {
+                          "maxLength": 10000,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "maxItems": 200,
+                        "minItems": 1,
+                        "type": "array"
+                      },
+                      "out": {
+                        "default": [],
+                        "items": {
+                          "maxLength": 10000,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "maxItems": 200,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "in"
+                    ],
+                    "type": "object"
+                  },
+                  "title": {
+                    "maxLength": 500,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contractVersion",
+                  "clientRequestId",
+                  "objective",
+                  "plan",
+                  "scope",
+                  "acceptanceCriteria"
+                ],
+                "type": "object"
+              },
+              "toolSurfaceVersion": {
+                "const": "0.4.0",
+                "type": "string"
+              },
+              "workspace": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "workspace",
+              "contract"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "acceptanceCriteria": {
+                "items": {
+                  "maxLength": 10000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "minItems": 1,
+                "type": "array"
+              },
+              "clientRequestId": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "constraints": {
+                "items": {
+                  "maxLength": 10000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              "objective": {
+                "maxLength": 100000,
+                "minLength": 1,
+                "type": "string"
+              },
+              "plan": {
+                "items": {
+                  "maxLength": 10000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "minItems": 1,
+                "type": "array"
+              },
+              "toolSurfaceVersion": {
+                "const": "0.4.0",
+                "type": "string"
+              },
+              "verificationProfile": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "workspace": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "workspace",
+              "objective",
+              "plan",
+              "acceptanceCriteria",
+              "clientRequestId"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "name": "codex_task_continue",
+      "description": "Start a supervised follow-up Codex turn on the persisted task thread.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instruction": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "toolSurfaceVersion": {
+            "const": "0.4.0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId",
+          "instruction"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_steer",
+      "description": "Steer the currently owned Codex turn using its exact expected turn identifier.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instruction": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "toolSurfaceVersion": {
+            "const": "0.4.0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId",
+          "instruction"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_interrupt",
+      "description": "Interrupt the active owned Codex turn and wait for terminal protocol evidence.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "toolSurfaceVersion": {
+            "const": "0.4.0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_approval_decide",
+      "description": "Resolve an exact pending approval under Supervisor policy; accepting may authorize workspace changes.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "approvalId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "accept",
+              "decline",
+              "cancel"
+            ],
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "toolSurfaceVersion": {
+            "const": "0.4.0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approvalId",
+          "decision"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_recover",
+      "description": "Reconcile a stale task with its isolated worktree and Codex thread without starting a new turn.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "toolSurfaceVersion": {
+            "const": "0.4.0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_verify",
+      "description": "Run one trusted Supervisor verification profile in the independent verifier worker.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "toolSurfaceVersion": {
+            "const": "0.4.0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId",
+          "profileId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_decide",
+      "description": "Record accept, request-changes, block, or cancel; cancel can interrupt active work.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "acceptedRisks": {
+                "items": {
+                  "maxLength": 10000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "criterionConfirmations": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "criterionId": {
+                      "maxLength": 100,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "evidence": {
+                      "maxLength": 10000,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "criterionId",
+                    "evidence"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 200,
+                "minItems": 1,
+                "type": "array"
+              },
+              "decision": {
+                "const": "accept",
+                "type": "string"
+              },
+              "expectedSnapshotId": {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              "rationale": {
+                "maxLength": 100000,
+                "minLength": 1,
+                "type": "string"
+              },
+              "taskId": {
+                "description": "Supervisor task identifier",
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "toolSurfaceVersion": {
+                "const": "0.4.0",
+                "type": "string"
+              }
+            },
+            "required": [
+              "taskId",
+              "rationale",
+              "decision",
+              "expectedSnapshotId",
+              "criterionConfirmations"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "acceptedRisks": {
+                "items": {
+                  "maxLength": 10000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "decision": {
+                "enum": [
+                  "request_changes",
+                  "block",
+                  "cancel"
+                ],
+                "type": "string"
+              },
+              "instruction": {
+                "maxLength": 100000,
+                "minLength": 1,
+                "type": "string"
+              },
+              "rationale": {
+                "maxLength": 100000,
+                "minLength": 1,
+                "type": "string"
+              },
+              "taskId": {
+                "description": "Supervisor task identifier",
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "toolSurfaceVersion": {
+                "const": "0.4.0",
+                "type": "string"
+              }
+            },
+            "required": [
+              "taskId",
+              "rationale",
+              "decision"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "name": "codex_task_cleanup",
+      "description": "Remove only a clean terminal task worktree; never removes the source repository or branch.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "toolSurfaceVersion": {
+            "const": "0.4.0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_verifier_reconcile",
+      "description": "Reconcile one exact owned verifier run; only proven termination can clear its scoped quarantine.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "toolSurfaceVersion": {
+            "const": "0.4.0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    }
+  ]
+}

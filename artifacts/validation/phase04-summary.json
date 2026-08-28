@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "phase": "ORCH-PHASE-04",
+  "generatedAt": "2026-08-28T10:02:00.000Z",
+  "project": {
+    "name": "codex-supervisor-mcp",
+    "version": "0.4.0",
+    "baselineCommit": "33e984504dbc23f475cbf21ef2143dbbf7dfd9f6",
+    "branch": "orch/phase-04-live-ready"
+  },
+  "authority": {
+    "supervisor": "ChatGPT or supervisorctl",
+    "implementer": "Codex in an isolated task worktree",
+    "verifier": "independent digest-pinned OCI recipes",
+    "humanOnly": ["commit", "push", "merge", "release", "deployment"]
+  },
+  "security": {
+    "status": "PASS",
+    "restrictedByDefault": true,
+    "exampleBearerTokenEmpty": true,
+    "obviousPlaceholdersRejected": true,
+    "sharedRedactionCore": true,
+    "redactBeforeTruncate": true,
+    "hostVerifierFallback": false,
+    "approvalDecisionScope": "single-use-only",
+    "execpolicyAmendmentApplied": false
+  },
+  "deterministicValidation": {
+    "status": "PASS",
+    "platform": "Ubuntu WSL2 linux/x64",
+    "tests": { "total": 158, "passed": 158, "failed": 0, "skipped": 0, "todo": 0 },
+    "typecheck": "PASS",
+    "build": "PASS",
+    "genericValidation": "PASS",
+    "mcpHttpSdkScan": "PASS",
+    "phase04Validation": "PASS",
+    "toolSurfaceValidation": "PASS",
+    "versionConsistency": "PASS",
+    "securityValidation": "PASS",
+    "dependencyAudit": { "status": "PASS", "vulnerabilities": 0, "dependencies": 49 },
+    "gitDiffCheck": "PASS"
+  },
+  "toolSurface": {
+    "restrictedCount": 13,
+    "restrictedSchemaHash": "ff8bdcd4a57a6657c34a51fce89f8763adf9e658ab0833efce183163d3fdc23c",
+    "fullCount": 23,
+    "fullSchemaHash": "b3b0284da37852d182a0e1d8b403634c176b41d468dfdac7290485913c4ecc00"
+  },
+  "environment": {
+    "wsl2Preflight": "PASS",
+    "distribution": "Ubuntu",
+    "platform": "linux",
+    "architecture": "x64",
+    "node": "v24.20.0",
+    "npm": "11.19.0",
+    "git": "2.53.0",
+    "dockerCli": "29.7.2",
+    "dockerDaemon": "29.7.2",
+    "blockers": []
+  },
+  "codexRuntime": {
+    "commandSource": "path",
+    "version": "codex-cli 0.150.1",
+    "versionProbe": "PASS",
+    "appServerHelp": "PASS",
+    "authStatus": "PASS",
+    "schemaCompatibility": "PASS",
+    "schemaHash": "f9d365c1780056b70454dcab8bd6ff21e81d342ec72760198ce521de9a0f7cf8",
+    "schemaFileCount": 295,
+    "realHandshake": "PASS",
+    "realDevelopmentE2e": "PASS",
+    "liveModel": "gpt-5.4-mini"
+  },
+  "verifier": {
+    "status": "PASS",
+    "realLocalDigest": "local/codex-supervisor-verifier@sha256:c625cad3763f15662e1964037d0a2ce602089cbafd69d140b288d7229b187eb1",
+    "dockerDaemon": "PASS",
+    "hostFallbackAttempted": false,
+    "terminationProven": true
+  },
+  "mcpScans": { "restricted": "PASS", "full": "PASS" },
+  "chatGptWeb": {
+    "restricted": "NOT_RUN",
+    "full": "NOT_RUN",
+    "secureTunnel": "NOT_RUN",
+    "productionReady": false
+  },
+  "residualRisks": [
+    "ChatGPT Web and Secure MCP Tunnel acceptance have not run",
+    "The current VPN exit returns HTTP 451 for the default model Code Mode Host endpoint; live E2E used explicit gpt-5.4-mini"
+  ],
+  "disposition": "PASS - LOCAL READY / CHATGPT WEB NOT_RUN",
+  "evidence": {
+    "handshake": "artifacts/validation/phase04-live-codex-handshake-summary.json",
+    "developmentE2e": "artifacts/validation/phase04-live-codex-e2e-summary.json",
+    "restrictedMcp": "artifacts/validation/mcp-restricted-scan.json",
+    "fullMcp": "artifacts/validation/mcp-full-scan.json"
+  },
+  "officialReferences": [
+    "https://learn.chatgpt.com/docs/windows/wsl",
+    "https://learn.chatgpt.com/docs/codex/cli",
+    "https://learn.chatgpt.com/docs/app-server",
+    "https://developers.openai.com/plugins/deploy/connect-chatgpt"
+  ]
+}

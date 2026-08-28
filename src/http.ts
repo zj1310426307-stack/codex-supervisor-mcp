@@ -13,7 +13,7 @@ export type HttpSupervisorFacade = SupervisorFacade & {
 
 export interface HttpServerDependencies {
   /** Injectable only for deterministic lifecycle tests. */
-  nodeHandler?: (req: IncomingMessage, res: ServerResponse) => void | Promise<void>;
+  nodeHandler?: (req: IncomingMessage, res: ServerResponse, parsedBody?: unknown) => void | Promise<void>;
   closeHandler?: () => void | Promise<void>;
 }
 
@@ -45,7 +45,7 @@ function requestKey(req: IncomingMessage): string {
   return req.socket.remoteAddress ?? "unknown";
 }
 
-function monitorBody(req: IncomingMessage, res: ServerResponse, maxBytes: number): boolean {
+function validateDeclaredBodyLength(req: IncomingMessage, res: ServerResponse, maxBytes: number): boolean {
   const rawLength = req.headers["content-length"];
   if (rawLength !== undefined) {
     if (!/^\d+$/.test(rawLength)) {
@@ -59,17 +59,36 @@ function monitorBody(req: IncomingMessage, res: ServerResponse, maxBytes: number
     }
   }
 
-  let received = 0;
-  const onData = (chunk: Buffer | string) => {
-    received += Buffer.byteLength(chunk);
-    if (received <= maxBytes || res.writableEnded) return;
-    req.pause();
-    json(res, 413, { error: "payload_too_large" }, { connection: "close" });
-    res.once("finish", () => req.destroy());
-  };
-  req.on("data", onData);
-  res.once("close", () => req.off("data", onData));
   return true;
+}
+
+const BODY_REJECTED = Symbol("body-rejected");
+
+async function readBoundedJsonBody(
+  req: IncomingMessage,
+  res: ServerResponse,
+  maxBytes: number
+): Promise<unknown | typeof BODY_REJECTED> {
+  if (req.method !== "POST") return undefined;
+  const chunks: Buffer[] = [];
+  let received = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    received += buffer.length;
+    if (received > maxBytes) {
+      json(res, 413, { error: "payload_too_large" }, { connection: "close" });
+      return BODY_REJECTED;
+    }
+    chunks.push(buffer);
+  }
+  const raw = Buffer.concat(chunks, received).toString("utf8");
+  if (!raw.trim()) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    json(res, 400, { error: "invalid_json" });
+    return BODY_REJECTED;
+  }
 }
 
 async function readiness(probe: Promise<boolean>, timeoutMs: number): Promise<boolean> {
@@ -163,10 +182,14 @@ export function startHttpServer(
       json(res, 503, { error: "mcp_result_ambiguous" }, { connection: "close" });
       return;
     }
-    if (!monitorBody(req, res, config.maxBodyBytes)) return;
+    if (!validateDeclaredBodyLength(req, res, config.maxBodyBytes)) return;
     let settled = false;
     let timedOut = false;
-    const work = track(Promise.resolve().then(() => nodeHandler(req, res)));
+    const work = track(Promise.resolve().then(async () => {
+      const parsedBody = await readBoundedJsonBody(req, res, config.maxBodyBytes);
+      if (parsedBody === BODY_REJECTED) return;
+      await nodeHandler(req, res, parsedBody);
+    }));
     const timeout = setTimeout(() => {
       if (settled) return;
       timedOut = true;

@@ -396,6 +396,29 @@ test("stop waits for both process exit and inherited stdout closure", async () =
   }
 });
 
+test("an inherited stdout handle cannot leave drain and stop pending forever", async () => {
+  const fake = await fakeServer("tail-exit");
+  const client = new CodexAppServerClient(process.execPath, undefined, 2_000, {
+    ...fake.options,
+    stdoutDrainTimeoutMs: 10
+  });
+  try {
+    await client.ensureStarted();
+    client.notify("test/emit-tail", {});
+    const deadline = Date.now() + 2_000;
+    while (client.isReady() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(client.isReady(), false);
+    await assert.rejects(
+      client.stop(),
+      /stdout did not close within 10ms; restart remains blocked/
+    );
+  } finally {
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    await client.stop().catch(() => undefined);
+    await fake.cleanup();
+  }
+});
+
 test("a delivered mutation with a failed write callback is treated as ambiguous", async () => {
   const fake = await fakeServer("write-ambiguous");
   const client = new CodexAppServerClient(process.execPath, undefined, 2_000, fake.options);

@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "checkedAt": "2026-08-28T04:59:35.401Z",
+  "mode": "restricted",
+  "transport": "streamable-http",
+  "actualHttpListener": true,
+  "sdkClient": "@modelcontextprotocol/client@2.0.0",
+  "negotiatedProtocolVersion": "2025-11-25",
+  "serverVersion": {
+    "name": "codex-supervisor-mcp",
+    "version": "0.4.0"
+  },
+  "toolCount": 13,
+  "toolSchemaHash": "ff8bdcd4a57a6657c34a51fce89f8763adf9e658ab0833efce183163d3fdc23c",
+  "catalogSchemaHash": "ff8bdcd4a57a6657c34a51fce89f8763adf9e658ab0833efce183163d3fdc23c",
+  "annotationsValidated": true,
+  "schemasValidatedAgainstCatalog": true,
+  "health": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"status\": \"PASS\",\n  \"scanMode\": \"restricted\",\n  \"realCodexProcessStarted\": false,\n  \"toolSurfaceVersion\": \"0.4.0\",\n  \"toolSchemaHash\": \"ff8bdcd4a57a6657c34a51fce89f8763adf9e658ab0833efce183163d3fdc23c\",\n  \"toolCount\": 13,\n  \"mode\": \"restricted\"\n}"
+      }
+    ],
+    "structuredContent": {
+      "status": "PASS",
+      "scanMode": "restricted",
+      "realCodexProcessStarted": false,
+      "toolSurfaceVersion": "0.4.0",
+      "toolSchemaHash": "ff8bdcd4a57a6657c34a51fce89f8763adf9e658ab0833efce183163d3fdc23c",
+      "toolCount": 13,
+      "mode": "restricted"
+    }
+  },
+  "tools": [
+    {
+      "name": "codex_health",
+      "description": "Read Supervisor, Codex App Server, and frozen tool-surface health without starting a turn.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_list",
+      "description": "List bounded summaries of tasks known to the Supervisor.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_status",
+      "description": "Read the current Supervisor state for one Codex implementation task.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_events",
+      "description": "Read bounded task-ledger events after a sequence number.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "afterSeq": {
+            "default": 0,
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_wait",
+      "description": "Long-poll for a bounded task state or event change without mutating it.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "afterSeq": {
+            "default": 0,
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "timeoutMs": {
+            "default": 20000,
+            "maximum": 25000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_pending_approvals",
+      "description": "Read redacted pending approval summaries; this never resolves an approval.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_workspace_status",
+      "description": "Read bounded Git status evidence from the task's isolated worktree.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_workspace_diff",
+      "description": "Read a bounded Git diff from the task's isolated worktree.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_contract",
+      "description": "Read the immutable normalized Development Contract for a supervised task.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_task_evidence",
+      "description": "Read redacted contract, snapshot, verification, and decision evidence for human review.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_verification_profiles",
+      "description": "List trusted Supervisor-side verification profile metadata; no command input is accepted.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_runtime_capabilities",
+      "description": "Read stable Codex runtime and protocol capabilities without starting work or verification.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "codex_verifier_status",
+      "description": "Read redacted owned verifier lease and scoped quarantine status.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Supervisor task identifier",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    }
+  ]
+}

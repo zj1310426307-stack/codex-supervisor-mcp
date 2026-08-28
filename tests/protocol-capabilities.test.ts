@@ -44,6 +44,15 @@ function requiredShapeSchemas(): Record<string, unknown> {
         }
       }
     },
+    "ThreadStartParams.json": {
+      title: "ThreadStartParams",
+      type: "object",
+      properties: {
+        approvalPolicy: { enum: ["untrusted", "on-request", "never"] },
+        sandbox: { enum: ["read-only", "workspace-write", "danger-full-access"] },
+        approvalsReviewer: { enum: ["user", "auto_review"] }
+      }
+    },
     "TurnStartedNotification.json": {
       title: "TurnStartedNotification",
       type: "object",
@@ -149,7 +158,7 @@ test("runtime probe generates a version-specific schema and enforces both protoc
   const result = await probeCodexRuntime({ codexBin: "fake-codex", runner });
   assert.equal(result.version, "codex-cli test");
   assert.equal(result.capabilities.compatible, true);
-  assert.equal(result.capabilities.validatedShapes.length, 7);
+  assert.equal(result.capabilities.validatedShapes.length, 8);
   assert.equal(result.binding?.version, "codex-cli test");
   assert.match(result.schemaHash, /^[a-f0-9]{64}$/);
 
@@ -178,4 +187,23 @@ test("runtime probe generates a version-specific schema and enforces both protoc
       return "";
     }
   }), /TurnCompletedNotification\.turn\.status/);
+
+  await assert.rejects(probeCodexRuntime({
+    codexBin: "fake-codex",
+    runner: async (command, args, timeout) => {
+      if (args[0] === "--version") return runner(command, args, timeout);
+      const output = args[args.indexOf("--out") + 1];
+      await writeProbeSchemas(output, methods);
+      await fs.writeFile(path.join(output, "ThreadStartParams.json"), JSON.stringify({
+        title: "ThreadStartParams",
+        type: "object",
+        properties: {
+          approvalPolicy: { enum: ["unlessTrusted"] },
+          sandbox: { enum: ["workspace-write"] },
+          approvalsReviewer: { enum: ["user"] }
+        }
+      }));
+      return "";
+    }
+  }), /ThreadStartParams\.approvalPolicy must allow untrusted/);
 });

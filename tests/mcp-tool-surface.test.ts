@@ -69,7 +69,7 @@ const legacyInput = {
 };
 
 test("full and restricted surfaces are frozen at 23 and 13 tools", () => {
-  assert.equal(TOOL_SURFACE_VERSION, "0.3.0");
+  assert.equal(TOOL_SURFACE_VERSION, "0.4.0");
   assert.deepEqual(registeredToolDefinitions(true).map((tool) => tool.name), EXPECTED_FULL);
   assert.deepEqual(registeredToolDefinitions(false).map((tool) => tool.name), EXPECTED_RESTRICTED);
   assert.equal(new Set(SUPERVISOR_TOOLS.map((tool) => tool.name)).size, 23);
