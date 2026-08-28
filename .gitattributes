@@ -1,0 +1,2 @@
+# validate:tool-surface compares this generated artifact byte-for-byte.
+artifacts/tool-manifest.json text eol=lf

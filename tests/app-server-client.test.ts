@@ -200,18 +200,80 @@ test("failed initialize proves process exit before cleanup completes", async () 
     shutdownTimeoutMs: 40,
     killTimeoutMs: 2_000
   });
-  const startedAt = Date.now();
+  type WaitForExit = <T>(exit: Promise<T>, timeoutMs: number) => Promise<T | undefined>;
+  let releaseGraceBoundary: (() => void) | undefined;
+  let graceWaitStarted: Promise<void> | undefined;
+  let restoreWaitForExit = () => undefined;
+  let childAtGraceBoundary: { signalCode: NodeJS.Signals | null } | undefined;
+  const observedWaits: number[] = [];
+
+  if (process.platform !== "win32") {
+    // Gate the first exit wait so signal ordering is asserted without comparing
+    // wall-clock durations on a loaded CI host.
+    const target = client as unknown as {
+      child?: { signalCode: NodeJS.Signals | null };
+      waitForExit: WaitForExit;
+    };
+    const originalWaitForExit = target.waitForExit.bind(client) as WaitForExit;
+    let markGraceWaitStarted!: () => void;
+    graceWaitStarted = new Promise<void>((resolve) => { markGraceWaitStarted = resolve; });
+    const graceBoundary = new Promise<void>((resolve) => { releaseGraceBoundary = resolve; });
+    target.waitForExit = async <T>(exit: Promise<T>, timeoutMs: number): Promise<T | undefined> => {
+      observedWaits.push(timeoutMs);
+      if (observedWaits.length === 1) {
+        childAtGraceBoundary = target.child;
+        markGraceWaitStarted();
+        await graceBoundary;
+        return undefined;
+      }
+      return originalWaitForExit(exit, timeoutMs);
+    };
+    restoreWaitForExit = () => { target.waitForExit = originalWaitForExit; };
+  }
+
+  let startSettled = false;
+  const startResult = client.ensureStarted().then(
+    () => {
+      startSettled = true;
+      return { ok: true as const };
+    },
+    (error: unknown) => {
+      startSettled = true;
+      return { ok: false as const, error };
+    }
+  );
   try {
-    await assert.rejects(
-      client.ensureStarted(),
-      (error: unknown) => error instanceof CodexRpcError && error.code === -32099
-    );
+    if (graceWaitStarted) {
+      await graceWaitStarted;
+      assert.deepEqual(observedWaits, [40]);
+      assert.equal(startSettled, false, "client must remain pending at the TERM grace boundary");
+      const messages = await waitForWire(
+        fake.logPath,
+        (wire) => wire.some((item) => item._fakeEvent === "sigterm")
+      );
+      assert.ok(
+        messages.findIndex((item) => item._fakeEvent === "sigterm") >
+          messages.findIndex((item) => item.method === "initialize"),
+        "TERM must follow the failed initialize request"
+      );
+      assert.equal(startSettled, false, "client must not escalate before the grace boundary is released");
+      releaseGraceBoundary?.();
+    }
+
+    const result = await startResult;
+    assert.equal(result.ok, false);
+    if (result.ok) assert.fail("initialize unexpectedly succeeded");
+    assert.ok(result.error instanceof CodexRpcError && result.error.code === -32099);
     if (process.platform !== "win32") {
-      assert.ok(Date.now() - startedAt >= 30, "client must wait before escalating from TERM to KILL");
+      assert.deepEqual(observedWaits, [40, 2_000]);
+      assert.equal(childAtGraceBoundary?.signalCode, "SIGKILL", "KILL must follow the released grace boundary");
     }
     assert.equal(client.isReady(), false);
     assert.equal((await client.stop()).alreadyStopped, true);
   } finally {
+    releaseGraceBoundary?.();
+    restoreWaitForExit();
+    await startResult;
     await client.stop().catch(() => undefined);
     await fake.cleanup();
   }
