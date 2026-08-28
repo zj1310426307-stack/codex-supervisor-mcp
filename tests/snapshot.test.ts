@@ -86,7 +86,7 @@ test("snapshot binds ignored files and symbolic-link targets", async (t) => {
   assert.notEqual(retargeted.snapshotId, linked.snapshotId);
 });
 
-test("snapshot rejects a same-size same-mtime untracked file replacement", async () => {
+test("snapshot rejects a same-size same-mtime untracked file mutation", async () => {
   const repo = await fs.mkdtemp(path.join(os.tmpdir(), "codex-supervisor-snapshot-"));
   await exec("git", ["-C", repo, "init", "-q"]);
   await exec("git", ["-C", repo, "config", "user.email", "test@example.com"]);
@@ -96,16 +96,11 @@ test("snapshot rejects a same-size same-mtime untracked file replacement", async
   await exec("git", ["-C", repo, "commit", "-qm", "base"]);
 
   const victim = path.join(repo, "race.bin");
-  const replacement = path.join(repo, ".git", "replacement.bin");
   await fs.writeFile(victim, "original");
-  await fs.writeFile(replacement, "replaced");
   const stableTimestamp = new Date(Math.floor(Date.now() / 1000) * 1000);
   await fs.utimes(victim, stableTimestamp, stableTimestamp);
-  await fs.utimes(replacement, stableTimestamp, stableTimestamp);
   const victimStat = await fs.stat(victim, { bigint: true });
-  const replacementStat = await fs.stat(replacement, { bigint: true });
-  assert.equal(replacementStat.size, victimStat.size);
-  assert.equal(replacementStat.mtimeNs, victimStat.mtimeNs);
+  assert.equal(Buffer.byteLength("replaced"), Number(victimStat.size));
 
   const originalDescriptor = Object.getOwnPropertyDescriptor(fs, "lstat");
   const originalOpenDescriptor = Object.getOwnPropertyDescriptor(fs, "open");
@@ -114,8 +109,9 @@ test("snapshot rejects a same-size same-mtime untracked file replacement", async
   const originalLstat = fs.lstat;
   const originalOpen = fs.open;
   let replaced = false;
-  // Model Windows runners where file IDs collide and creation time is tunneled
-  // to the new directory entry. The final content check must still reject.
+  let victimLstatCalls = 0;
+  // Model Windows runners where file identity and timestamp fields collide.
+  // The final content check must still reject the byte-level mutation.
   const maskLegacyIdentity = <T extends object>(actual: T): T => new Proxy(actual, {
     get(target, property, receiver) {
       if (
@@ -133,13 +129,17 @@ test("snapshot rejects a same-size same-mtime untracked file replacement", async
     value: async (...args: unknown[]) => {
       const result = await Reflect.apply(originalLstat, fs, args);
       if (path.resolve(String(args[0])) === path.resolve(victim)) {
-        if (!replaced) {
+        victimLstatCalls += 1;
+        if (!replaced && victimLstatCalls === 2) {
+          // The initial descriptor has already hashed "original". Mutate only
+          // after finalPath captured the old stat so the verifier must detect
+          // the same-size, same-mtime byte change through its own descriptor.
           replaced = true;
-          if (process.platform === "win32") await fs.unlink(victim);
-          await fs.rename(replacement, victim);
+          await fs.writeFile(victim, "replaced");
+          await fs.utimes(victim, stableTimestamp, stableTimestamp);
           return result;
         }
-        return maskLegacyIdentity(result);
+        if (replaced) return maskLegacyIdentity(result);
       }
       return result;
     }
