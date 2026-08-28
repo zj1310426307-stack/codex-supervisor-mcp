@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.local/codex-supervisor/verifier-run.schema.json",
+  "title": "VerifierRunV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "runId",
+    "taskId",
+    "profileId",
+    "recipeIds",
+    "workerId",
+    "ownerInstanceId",
+    "leaseId",
+    "backend",
+    "assurance",
+    "startedAt",
+    "heartbeatAt",
+    "leaseExpiresAt",
+    "beforeSnapshotId",
+    "state"
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "backend": { "const": "oci" } }, "required": ["backend"] },
+      "then": {
+        "required": ["engine", "containerImageDigest", "containerEngineNamespaceHash"],
+        "properties": { "assurance": { "const": "high" } }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          { "required": ["containerId"] },
+          { "required": ["containerIdHash"] },
+          { "required": ["containerRecipeId"] },
+          { "required": ["containerLabelsHash"] },
+          { "required": ["containerOwnershipRecordedAt"] }
+        ]
+      },
+      "then": {
+        "required": [
+          "containerId",
+          "containerIdHash",
+          "containerRecipeId",
+          "containerLabelsHash",
+          "containerEngineNamespaceHash",
+          "containerOwnershipRecordedAt"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "runId": { "type": "string", "format": "uuid" },
+    "taskId": { "type": "string", "minLength": 1 },
+    "profileId": { "type": "string", "minLength": 1 },
+    "recipeIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "workerId": { "type": "string", "format": "uuid" },
+    "ownerInstanceId": { "type": "string", "minLength": 1 },
+    "leaseId": { "type": "string", "format": "uuid" },
+    "backend": { "enum": ["process-group", "windows-process-tree", "docker", "oci"] },
+    "assurance": { "enum": ["standard", "best-effort", "high"] },
+    "engine": { "enum": ["docker", "podman"] },
+    "pid": { "type": "integer", "minimum": 2 },
+    "processGroupId": { "type": "integer", "minimum": 2 },
+    "windowsTreeRootPid": { "type": "integer", "minimum": 2 },
+    "containerId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "containerIdHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "containerImageDigest": { "type": "string", "pattern": "@sha256:[a-f0-9]{64}$" },
+    "containerRecipeId": { "type": "string", "minLength": 1 },
+    "containerLabelsHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "containerEngineNamespaceHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "containerOwnershipRecordedAt": { "type": "string", "format": "date-time" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "heartbeatAt": { "type": "string", "format": "date-time" },
+    "leaseExpiresAt": { "type": "string", "format": "date-time" },
+    "beforeSnapshotId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "afterSnapshotId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "state": {
+      "enum": [
+        "starting",
+        "running",
+        "terminating",
+        "passed",
+        "failed",
+        "timed_out",
+        "mutated_workspace",
+        "lost",
+        "quarantined"
+      ]
+    },
+    "exitCode": { "type": "integer" },
+    "terminationEvidence": { "type": "object" },
+    "logDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "stale": { "type": "boolean" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "recipeId",
+          "required",
+          "startedAt",
+          "completedAt",
+          "durationMs",
+          "exitCode",
+          "signal",
+          "stdout",
+          "stderr",
+          "truncated",
+          "timedOut",
+          "passed"
+        ],
+        "properties": {
+          "recipeId": { "type": "string", "minLength": 1 },
+          "required": { "type": "boolean" },
+          "startedAt": { "type": "string", "format": "date-time" },
+          "completedAt": { "type": "string", "format": "date-time" },
+          "durationMs": { "type": "integer", "minimum": 0 },
+          "exitCode": { "type": ["integer", "null"] },
+          "signal": { "type": ["string", "null"] },
+          "stdout": { "type": "string" },
+          "stderr": { "type": "string" },
+          "truncated": { "type": "boolean" },
+          "timedOut": { "type": "boolean" },
+          "passed": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

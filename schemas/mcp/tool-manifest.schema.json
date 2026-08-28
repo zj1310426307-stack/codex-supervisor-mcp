@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.codex-supervisor.invalid/schemas/mcp/tool-manifest.schema.json",
+  "title": "Codex Supervisor MCP generated tool manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "serverName",
+    "serverVersion",
+    "toolSurfaceVersion",
+    "restricted",
+    "full"
+  ],
+  "properties": {
+    "serverName": { "const": "codex-supervisor-mcp" },
+    "serverVersion": { "const": "0.3.0" },
+    "toolSurfaceVersion": { "const": "0.3.0" },
+    "restricted": { "$ref": "#/$defs/surface" },
+    "full": { "$ref": "#/$defs/surface" }
+  },
+  "$defs": {
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "serverName",
+        "serverVersion",
+        "toolSurfaceVersion",
+        "mode",
+        "toolCount",
+        "toolSchemaHash",
+        "tools"
+      ],
+      "properties": {
+        "serverName": { "const": "codex-supervisor-mcp" },
+        "serverVersion": { "const": "0.3.0" },
+        "toolSurfaceVersion": { "const": "0.3.0" },
+        "mode": { "enum": ["restricted", "full"] },
+        "toolCount": { "type": "integer", "minimum": 0 },
+        "toolSchemaHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "description", "annotations", "inputSchema"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "description": { "type": "string", "minLength": 1 },
+              "annotations": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "readOnlyHint",
+                  "destructiveHint",
+                  "idempotentHint",
+                  "openWorldHint"
+                ],
+                "properties": {
+                  "readOnlyHint": { "type": "boolean" },
+                  "destructiveHint": { "type": "boolean" },
+                  "idempotentHint": { "type": "boolean" },
+                  "openWorldHint": { "const": false }
+                }
+              },
+              "inputSchema": { "type": "object" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

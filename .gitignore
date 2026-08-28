@@ -1,6 +1,8 @@
 node_modules/
+.npm-cache/
 dist/
 .env
 .codex-supervisor/
+artifacts/live/
 *.log
 .DS_Store

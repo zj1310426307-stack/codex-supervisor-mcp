@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-27T19:57:28.713Z",
+  "project": {
+    "name": "codex-supervisor-mcp",
+    "version": "0.3.0",
+    "seedCommit": "6b90549046059727a8430f64d299ac98fcb8e100",
+    "seedTag": "v0.1.0",
+    "seedBundleSha256": "133005B3C6C16EDD5CD4628463DF22B5A2F735E43F6BD6F705F4924A34BC14A7"
+  },
+  "environment": {
+    "platform": "win32",
+    "architecture": "x64",
+    "nodeVersion": "v24.17.0",
+    "npmVersion": "11.13.0",
+    "gitVersion": "2.55.0.windows.2"
+  },
+  "localCheck": {
+    "command": "npm run check",
+    "exitCode": 0,
+    "tests": {
+      "passed": 144,
+      "failed": 0,
+      "skipped": 2
+    },
+    "typecheck": "PASS",
+    "build": "PASS",
+    "genericValidation": "PASS",
+    "phase03Validation": "PASS",
+    "toolSurfaceValidation": "PASS",
+    "versionConsistency": "PASS",
+    "securityValidation": "PASS"
+  },
+  "toolSurface": {
+    "restrictedCount": 13,
+    "restrictedSchemaHash": "ff8bdcd4a57a6657c34a51fce89f8763adf9e658ab0833efce183163d3fdc23c",
+    "fullCount": 23,
+    "fullSchemaHash": "df0eec76487d28ddfbf9619c6b1d3427e46979c46f756f1f4da74a44b762957e"
+  },
+  "additionalChecks": {
+    "dependencyAudit": {
+      "command": "npm audit --audit-level=high --cache .npm-cache",
+      "exitCode": 0,
+      "vulnerabilities": 0
+    },
+    "packageDryRun": {
+      "command": "npm pack --dry-run --json --cache .npm-cache",
+      "exitCode": 0,
+      "entryCount": 113
+    },
+    "diffCheck": {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  },
+  "codexRuntime": {
+    "diagnosisArtifact": "artifacts/validation/codex-cli-diagnosis.json",
+    "readOnlyDiagnosis": "COMPLETED_WITH_BLOCKER",
+    "resolvedCommandSource": "windowsapps-desktop-package",
+    "globalNpmCodexInstalled": false,
+    "versionProbe": "BLOCKED_BY_ENVIRONMENT",
+    "reason": "The resolved Codex executable returned Access Denied/EPERM both in the sandbox and after an explicitly approved outside-sandbox retry.",
+    "cliInstalledOrHostConfigurationChangedBySupervisor": false
+  },
+  "externalTracks": {
+    "liveHandshakeHarness": "NOT_RUN",
+    "liveDevelopmentE2eHarness": "NOT_RUN",
+    "chatGptWebRestricted": "NOT_RUN",
+    "chatGptWebFullControl": "NOT_RUN",
+    "tunnelPilot": "NOT_RUN",
+    "dockerBuild": "NOT_RUN"
+  },
+  "officialReferences": [
+    "https://learn.chatgpt.com/docs/app-server",
+    "https://learn.chatgpt.com/docs/codex/cli"
+  ]
+}

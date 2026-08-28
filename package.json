@@ -1,6 +1,6 @@
 {
   "name": "codex-supervisor-mcp",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "A remote MCP control plane that lets ChatGPT supervise Codex while Codex owns code execution.",
   "type": "module",
   "private": true,
@@ -9,11 +9,20 @@
   },
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
-    "check": "npm run typecheck && npm test"
+    "validate:generic": "node scripts/validate-generic.mjs",
+    "validate:phase03": "node scripts/validate-phase03.mjs",
+    "validate:tool-surface": "tsx scripts/chatgpt/export-tool-manifest.ts --check",
+    "validate:version-consistency": "tsx scripts/validate-version-consistency.ts",
+    "validate:security": "node scripts/validate-security.mjs",
+    "diagnose:codex": "tsx scripts/diagnose-codex-cli.ts",
+    "smoke:codex": "tsx scripts/live/codex-handshake-smoke.ts",
+    "e2e:codex": "tsx scripts/live/codex-development-e2e.ts",
+    "operator": "tsx src/cli/supervisorctl.ts",
+    "check": "npm run typecheck && npm test && npm run build && npm run validate:generic && npm run validate:phase03 && npm run validate:tool-surface && npm run validate:version-consistency && npm run validate:security"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "2.0.0",

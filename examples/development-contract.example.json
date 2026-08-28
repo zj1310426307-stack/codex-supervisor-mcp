@@ -1,0 +1,38 @@
+{
+  "contractVersion": "1.0",
+  "clientRequestId": "example-request-001",
+  "title": "Add deterministic health evidence",
+  "objective": "Expose deterministic, independently verifiable health evidence without adding a shell tool.",
+  "plan": [
+    "Add the typed health evidence contract.",
+    "Implement the bounded read-only response.",
+    "Add unit and integration coverage."
+  ],
+  "scope": {
+    "in": ["Supervisor health evidence and tests"],
+    "out": ["Deployment, Git publication, and unrelated application behavior"]
+  },
+  "constraints": [
+    "Do not expose arbitrary commands.",
+    "Do not persist credentials."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "Health evidence has a stable typed shape.",
+      "evidence": "Unit tests and typecheck"
+    },
+    {
+      "id": "AC-2",
+      "description": "Sensitive values are redacted before persistence.",
+      "evidence": "Redaction test"
+    }
+  ],
+  "requiredVerificationRecipes": ["typecheck", "test"],
+  "allowedChangePaths": ["src", "tests"],
+  "forbiddenChangePaths": [".env", ".github/workflows"],
+  "maxCorrectionPasses": 3,
+  "metadata": {
+    "owner": "supervisor"
+  }
+}

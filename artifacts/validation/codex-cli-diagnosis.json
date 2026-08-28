@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-27T17:59:52.063Z",
+  "readOnly": true,
+  "platform": "win32",
+  "architecture": "x64",
+  "node": "v24.17.0",
+  "probes": [
+    {
+      "command": "where.exe codex",
+      "ok": true,
+      "exitCode": 0,
+      "stdout": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.818.8289.0_x64__2p2nqsd0c76g0\\app\\resources\\codex\r\nC:\\Program Files\\WindowsApps\\OpenAI.Codex_26.818.8289.0_x64__2p2nqsd0c76g0\\app\\resources\\codex.exe",
+      "stderr": ""
+    },
+    {
+      "command": "C:\\Program Files\\nodejs\\node.exe C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js root -g",
+      "ok": true,
+      "exitCode": 0,
+      "stdout": "[USER_PROFILE]\\npm\\node_modules",
+      "stderr": ""
+    },
+    {
+      "command": "C:\\Program Files\\nodejs\\node.exe C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js ls -g @openai/codex --depth=0",
+      "ok": false,
+      "exitCode": 1,
+      "stdout": "[USER_PROFILE]\\npm\n└── (empty)",
+      "stderr": "",
+      "error": "Command failed: C:\\Program Files\\nodejs\\node.exe C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js ls -g @openai/codex --depth=0\n"
+    },
+    {
+      "command": "codex --version",
+      "ok": false,
+      "exitCode": null,
+      "stdout": "",
+      "stderr": "",
+      "error": "spawn EPERM"
+    },
+    {
+      "command": "codex app-server --help",
+      "ok": false,
+      "exitCode": null,
+      "stdout": "",
+      "stderr": "",
+      "error": "spawn EPERM"
+    },
+    {
+      "command": "powershell.exe -NoProfile -Command Get-Command codex -All -ErrorAction SilentlyContinue | Select-Object CommandType,Name,Source,Path,Version | ConvertTo-Json -Depth 3",
+      "ok": true,
+      "exitCode": 0,
+      "stdout": "[\r\n    {\r\n        \"CommandType\":  32,\r\n        \"Name\":  \"codex.exe\",\r\n        \"Source\":  \"C:\\\\Program Files\\\\WindowsApps\\\\OpenAI.Codex_26.818.8289.0_x64__2p2nqsd0c76g0\\\\app\\\\resources\\\\codex.exe\",\r\n        \"Path\":  \"C:\\\\Program Files\\\\WindowsApps\\\\OpenAI.Codex_26.818.8289.0_x64__2p2nqsd0c76g0\\\\app\\\\resources\\\\codex.exe\",\r\n        \"Version\":  {\r\n                        \"Major\":  0,\r\n                        \"Minor\":  0,\r\n                        \"Build\":  0,\r\n                        \"Revision\":  0,\r\n                        \"MajorRevision\":  0,\r\n                        \"MinorRevision\":  0\r\n                    }\r\n    },\r\n    {\r\n        \"CommandType\":  32,\r\n        \"Name\":  \"codex\",\r\n        \"Source\":  \"C:\\\\Program Files\\\\WindowsApps\\\\OpenAI.Codex_26.818.8289.0_x64__2p2nqsd0c76g0\\\\app\\\\resources\\\\codex\",\r\n        \"Path\":  \"C:\\\\Program Files\\\\WindowsApps\\\\OpenAI.Codex_26.818.8289.0_x64__2p2nqsd0c76g0\\\\app\\\\resources\\\\codex\",\r\n        \"Version\":  {\r\n                        \"Major\":  0,\r\n                        \"Minor\":  0,\r\n                        \"Build\":  0,\r\n                        \"Revision\":  0,\r\n                        \"MajorRevision\":  0,\r\n                        \"MinorRevision\":  0\r\n                    }\r\n    }\r\n]",
+      "stderr": ""
+    }
+  ]
+}

@@ -1,32 +1,27 @@
 # Roadmap
 
-## v0.1 — local supervisor control plane
+## Current: v0.3.0
 
-- Remote MCP endpoint over Streamable HTTP
-- Codex app-server adapter
-- Start/status/events/wait/steer/interrupt/continue
-- Approval queue with destructive-action blocks
-- Workspace allowlist
-- Read-only git status/diff
-- Persistent task ledger
+- Stable App Server schema compatibility gate
+- Structured contracts and strict legacy input compatibility
+- Isolated task worktrees, Turn Leases, watchdog, and fail-closed protocol ownership
+- Independent verifier worker, Verifier Leases, snapshot binding, scoped quarantine, and reconciliation
+- v1/v2 to v3 ledger migration
+- Restricted 13-tool and Full-control 23-tool MCP surfaces
+- Secure loopback-first HTTP and `supervisorctl` fallback
+- Opt-in real handshake/development harnesses with honest evidence boundaries
 
-## v0.2 — production connectivity and auth
+## Candidate v0.4 work
 
-- OAuth 2.1 resource server support for ChatGPT MCP connections
-- Secure MCP Tunnel deployment profile when available to the workspace
-- Multi-user task ownership and audit identity
-- TLS/reverse-proxy deployment examples
+- First-class OAuth resource-server integration where required by the deployment environment
+- Multiple authenticated human supervisors with explicit ownership transfer
+- Stronger Windows process identity attestation beyond best-effort process-tree proof
+- Signed tool manifests and ledger backup/restore tooling
+- Supported outbound tunnel packaging when an official workspace capability is available
 
-## v0.3 — stronger independent verification
+## Out of scope without a new phase
 
-- Configured, allowlisted verification recipes (not arbitrary shell)
-- Git worktree isolation per Codex task
-- Base/head snapshots and deterministic diff evidence
-- Test evidence ingestion and failure classification
-
-## v0.4 — multi-Codex orchestration
-
-- Parallel task slots
-- Explicit task dependencies
-- Supervisor fan-out/fan-in while preserving one writer per worktree
-- Rate/budget controls
+- Automatic commit, push, merge, release, or deployment
+- Arbitrary shell/file-write MCP tools
+- Silent CLI installation or host PATH/registry/alias repair
+- Parallel writers in one task worktree

@@ -1,112 +1,98 @@
 # codex-supervisor-mcp
 
-A generic MCP control plane for one clear division of labor:
+`codex-supervisor-mcp` v0.3.0 is an independent MCP control plane for one division of responsibility:
 
-> **ChatGPT Web thinks and supervises. Codex executes and writes code.**
+> ChatGPT supervises; Codex implements inside an isolated worktree; a human owns commit, push, merge, release, and deployment.
 
-This repository is intentionally unrelated to any specific application repository.
+It is intentionally unrelated to any application repository or business-domain profile. It exposes no arbitrary shell, file-write, Git publication, or deployment tool.
 
-## What it does
+## Current surface
 
-ChatGPT connects to this server as a remote MCP. The MCP starts and controls a local `codex app-server` process, then exposes a small supervisory API:
+The Full-control surface contains **23** tools. The Restricted surface contains the **13** genuinely read-only tools generated from the same registration source.
 
-| MCP tool | Purpose |
+| Class | Tools |
 |---|---|
-| `codex_health` | Verify Codex is reachable/authenticated |
-| `codex_task_start` | Give Codex a structured implementation brief |
-| `codex_task_list` / `codex_task_status` | Track work |
-| `codex_task_events` / `codex_task_wait` | Observe actual execution progress |
-| `codex_task_steer` | Correct an active Codex turn |
-| `codex_task_interrupt` | Stop a bad run |
-| `codex_task_continue` | Ask Codex for another implementation/fix pass |
-| `codex_pending_approvals` | Inspect commands/file changes waiting for approval |
-| `codex_approval_decide` | Accept/decline an allowed pending action |
-| `codex_workspace_status` | Independently inspect git status |
-| `codex_workspace_diff` | Independently review code changes |
+| Restricted/read | `codex_health`, `codex_task_list`, `codex_task_status`, `codex_task_events`, `codex_task_wait`, `codex_pending_approvals`, `codex_workspace_status`, `codex_workspace_diff`, `codex_task_contract`, `codex_task_evidence`, `codex_verification_profiles`, `codex_runtime_capabilities`, `codex_verifier_status` |
+| Control | `codex_task_recover` |
+| Destructive control | `codex_task_start`, `codex_task_continue`, `codex_task_steer`, `codex_task_interrupt`, `codex_approval_decide`, `codex_task_verify`, `codex_task_decide`, `codex_task_cleanup`, `codex_verifier_reconcile` |
 
-There is **no arbitrary shell MCP tool**.
+The machine-readable source and hashes are exported to `artifacts/tool-manifest.json`. Every local tool has `openWorldHint=false`; control tools are never mislabeled as read-only.
 
-## Prerequisites
+## Safety model
 
-- Node.js 20+
+- Every task starts from a strict Development Contract and an allowlisted, clean source Git repository.
+- Work happens on a per-task branch and worktree. The source checkout is not used as Codex's write directory.
+- `turn/completed` means only that the Codex turn ended. It moves the task toward independent verification; it does not mean acceptance.
+- A Turn Lease and watchdog prevent two writers from owning the same task silently.
+- Verification accepts only trusted profile IDs from version-2 local configuration. Read-only-compatible recipes run only in a digest-pinned, network-disabled, read-only, non-root OCI container; inspected image/label identity and complete container termination are required, and Docker/Podman failure never falls back to the host.
+- A Verifier Lease, durable run ledger, process-ownership proof, and scoped quarantine guard uncertain verifier termination.
+- Workspace snapshots include tracked, staged, unstaged, ordinary untracked, Git-ignored, and symbolic-link state under explicit resource limits. Passing evidence is tied to an exact snapshot.
+- Contract path rules are enforced forbidden-first against both sides of renames/copies and all changes since the task base commit.
+- Verification creates evidence candidates only. Acceptance re-captures the live worktree and requires an exact snapshot ID plus one explicit evidence confirmation for every contract criterion.
+- Approval requests are classified from their official structured fields. Session-wide acceptance, network grants, policy amendments, extra permissions, publication/history commands, and out-of-worktree paths are not authorized.
+- Cleanup is allowed only for an eligible terminal task and removes only its validated task worktree.
+- Secrets and unbounded event/log payloads are redacted before persistence or remote return.
+
+## Prerequisites and setup
+
+- Node.js 20 or newer
 - Git
-- Codex CLI installed and logged in (`codex login`)
-- One or more local project directories to allowlist
+- A compatible Codex CLI installed and signed in by the operator
+- One or more local Git repositories below `CODEX_WORKSPACE_ROOTS`
 
-`codex app-server` is used internally because it exposes thread lifecycle, turn steering/interruption, events and approval requests. It speaks JSON-RPC over stdio.
-
-## Setup
+The service does not install or repair Codex CLI, modify `PATH`, aliases, the registry, or operating-system application registrations.
 
 ```bash
-cp .env.example .env
-# edit CODEX_WORKSPACE_ROOTS and other values
 npm install
-npm run build
+copy .env.example .env
+npm run check
 ```
 
-Node does not automatically load `.env`; either export the variables in your service manager/shell or use your preferred env loader. Example on macOS/Linux:
+Node does not automatically load `.env`; export the variables using the process manager or shell that starts the service. The default endpoint is `http://127.0.0.1:8787/mcp`.
+
+Official Codex documentation describes App Server as the client-integration protocol and specifies JSONL over stdio by default. A client initializes once, waits for the response, then sends `initialized`: [Codex App Server](https://learn.chatgpt.com/docs/app-server). CLI installation and sign-in are operator prerequisites: [Codex CLI](https://learn.chatgpt.com/docs/codex/cli).
+
+## Typical lifecycle
+
+1. Call `codex_task_start` with either a structured contract or the strict legacy compatibility form. Both forms require a caller-generated `clientRequestId`; reuse the same value only when retrying the same start request.
+2. Observe status, bounded events, approvals, and the isolated worktree.
+3. Steer, interrupt, or resolve an exact approval when required.
+4. After a turn ends, run a trusted verification profile.
+5. Use `codex_task_decide` to accept, request corrections, block, or cancel. Acceptance must include the expected verified snapshot ID and exact per-criterion confirmations.
+6. A human reviews the evidence and owns all publication actions.
+7. Clean up the task worktree only after terminal resolution.
+
+`supervisorctl` provides the same policy-enforced lifecycle locally when a ChatGPT workspace cannot expose Full-control MCP tools.
+
+An identical `task_start` retry can resume only a pristine durable `planned` reservation, before any worktree, Codex thread, turn, lease, or other side-effect evidence exists. A restart that finds `preparing` or later ambiguous start evidence marks the task stale instead of replaying an external mutation. After any HTTP 504, do not automatically retry a control call: the server deliberately becomes not-ready because the result may already have committed. Restart only after inspecting the ledger and worktree; `clientRequestId` makes the original task identity discoverable but does not make arbitrary mutations replay-safe.
+
+## Verification tracks
 
 ```bash
-export CODEX_WORKSPACE_ROOTS="$HOME/dev"
-export MCP_BEARER_TOKEN="$(openssl rand -hex 32)"
-npm run dev
+npm run typecheck
+npm test
+npm run build
+npm run validate:generic
+npm run validate:phase03
+npm run validate:tool-surface
+npm run validate:version-consistency
+npm run validate:security
 ```
 
-On Windows PowerShell:
-
-```powershell
-$env:CODEX_WORKSPACE_ROOTS = "C:\\dev;D:\\work"
-$env:MCP_BEARER_TOKEN = "replace-with-a-long-random-secret"
-npm run dev
-```
-
-Default endpoint:
+Real Codex runs are opt-in and never part of an ordinary build:
 
 ```text
-http://127.0.0.1:8787/mcp
+CODEX_SUPERVISOR_LIVE_TEST=1
+CODEX_SUPERVISOR_LIVE_ACK=I_UNDERSTAND_THIS_STARTS_A_LOCAL_CODEX_PROCESS
 ```
 
-## Connecting ChatGPT Web
+Development E2E additionally requires `CODEX_SUPERVISOR_LIVE_E2E=1` and uses a newly created temporary Git repository with no remote. See `docs/ORCH-PHASE-03-LIVE-CODEX-E2E.md`.
 
-ChatGPT is hosted, so it cannot call a laptop-only `127.0.0.1` endpoint directly. The preferred topology is **Secure MCP Tunnel**: keep this MCP on loopback and let OpenAI's tunnel client establish the outbound connection. A hardened HTTPS reverse proxy is the fallback.
+## Documentation
 
-Plan capability matters. As of August 2026, ChatGPT Pro can connect custom MCP apps only with read/fetch permissions; Full MCP write/modify actions are available in beta on Business, Enterprise and Edu. Therefore:
-
-- `MCP_CONTROL_ENABLED=false`: expose inspection/status/diff tools only. This is the safe restricted mode.
-- `MCP_CONTROL_ENABLED=true`: expose start/steer/interrupt/continue/approval actions for a Full MCP-capable ChatGPT workspace.
-
-Do not mislabel control actions as read-only to bypass host permissions, and never bind an unauthenticated development MCP to the public Internet. See `docs/CHATGPT-WEB.md`.
-
-## Intended ChatGPT supervision loop
-
-```text
-1. Understand the feature/problem.
-2. Inspect enough context to define scope.
-3. Call codex_task_start with:
-   - objective
-   - implementation plan
-   - acceptance criteria
-   - constraints
-4. Poll codex_task_wait/status/events.
-5. If approval is requested, inspect it and decide.
-6. If Codex drifts, codex_task_steer or interrupt.
-7. When Codex finishes, inspect workspace_status and workspace_diff.
-8. If defects remain, codex_task_continue with targeted corrections.
-9. Stop only when acceptance criteria have evidence.
-```
-
-## Security defaults
-
-- Workspace path must be below `CODEX_WORKSPACE_ROOTS`.
-- Codex starts with workspace-write sandboxing.
-- Command/file-change approval requests are surfaced to the supervisor instead of being auto-approved. Additional permission-profile requests are denied in v0.1.
-- Known destructive actions are hard-blocked by local policy.
-- MCP has no generic shell executor.
-- Remote binds require a bearer token.
-- Task/thread/event audit data is persisted to `SUPERVISOR_STATE_FILE`.
-
-## Current v0.1 limitation
-
-Pending app-server approval requests are live-process state. The task/thread ledger survives a supervisor restart, but an approval that was waiting at the exact moment of restart cannot be resumed as the same RPC request; the task is marked `stale`. Continue the persisted thread with a new supervised turn.
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+- Architecture and trust boundaries: `docs/ARCHITECTURE.md`
+- State and supervision protocol: `docs/SUPERVISION-PROTOCOL.md`
+- Verification and recovery: `docs/VERIFICATION.md`, `docs/RECOVERY.md`
+- Secure operation and remote connectivity: `docs/SECURE-OPERATIONS.md`, `docs/SECURE-MCP-TUNNEL.md`
+- ChatGPT Web manual checks: `docs/CHATGPT-WEB-MANUAL-TEST.md`
+- Current validation record: `docs/ORCH-PHASE-03-VALIDATION.md`

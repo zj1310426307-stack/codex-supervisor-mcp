@@ -1,196 +1,225 @@
-import { McpServer } from "@modelcontextprotocol/server";
-import * as z from "zod/v4";
-import type { Orchestrator } from "../core/orchestrator.js";
+import { McpServer, fromJsonSchema } from "@modelcontextprotocol/server";
+import type { CriterionConfirmationInput, SupervisorFacade } from "./facade.js";
+import {
+  SUPERVISOR_TOOLS,
+  TOOL_SURFACE_VERSION,
+  inputJsonSchema,
+  toolSurfaceMetadata,
+  type ToolDefinition
+} from "./tool-catalog.js";
 
-function result(value: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
+const MAX_RESULT_CHARS = 100_000;
+const SECRET_KEY = /(?:authorization|cookie|token|secret|password|private.?key|api.?key)/i;
+const SECRET_VALUE_PATTERNS = [
+  /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi,
+  /\b(?:sk|sess|ghp|github_pat)_[A-Za-z0-9_-]{8,}\b/g,
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g
+];
+
+function redactValue(value: unknown, key?: string, seen = new WeakSet<object>()): unknown {
+  if (key && SECRET_KEY.test(key)) return "[REDACTED]";
+  if (typeof value === "string") {
+    return SECRET_VALUE_PATTERNS.reduce((current, pattern) => current.replace(pattern, "[REDACTED]"), value);
+  }
+  if (!value || typeof value !== "object") return value;
+  if (seen.has(value)) return "[CIRCULAR]";
+  seen.add(value);
+  if (Array.isArray(value)) return value.map((entry) => redactValue(entry, undefined, seen));
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([childKey, child]) => [
+      childKey,
+      redactValue(child, childKey, seen)
+    ])
+  );
 }
 
-const READ_ONLY = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false
-} as const;
+function structured(value: unknown): Record<string, unknown> {
+  const safe = redactValue(value);
+  if (safe && typeof safe === "object" && !Array.isArray(safe)) return safe as Record<string, unknown>;
+  return { value: safe };
+}
 
-const CONTROL = {
-  readOnlyHint: false,
-  destructiveHint: false,
-  idempotentHint: false,
-  openWorldHint: false
-} as const;
+function result(value: unknown) {
+  const payload = structured(value);
+  const serialized = JSON.stringify(payload, null, 2);
+  const boundedPayload =
+    serialized.length <= MAX_RESULT_CHARS
+      ? payload
+      : {
+          truncated: true,
+          originalChars: serialized.length,
+          preview: serialized.slice(0, MAX_RESULT_CHARS)
+        };
+  const bounded = JSON.stringify(boundedPayload, null, 2);
+  return {
+    content: [{ type: "text" as const, text: bounded }],
+    structuredContent: boundedPayload
+  };
+}
 
-const INTERRUPT = {
-  readOnlyHint: false,
-  destructiveHint: true,
-  idempotentHint: true,
-  openWorldHint: false
-} as const;
+function errorResult(error: unknown) {
+  const record = error && typeof error === "object" ? (error as Record<string, unknown>) : undefined;
+  const code = typeof record?.code === "string" ? record.code : "SUPERVISOR_OPERATION_FAILED";
+  const message = error instanceof Error ? error.message : String(error);
+  const payload = structured({ ok: false, error: { code, message } });
+  return {
+    isError: true,
+    content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
+    structuredContent: payload
+  };
+}
 
-export function createSupervisorMcp(orchestrator: Orchestrator): McpServer {
+type ToolHandler = (input: Record<string, unknown>) => Promise<unknown> | unknown;
+
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : { runtime: value };
+}
+
+function handlers(facade: SupervisorFacade): Record<string, ToolHandler> {
+  return {
+    codex_health: async () => ({
+      ...asObject(await facade.health()),
+      ...toolSurfaceMetadata(facade.controlEnabled())
+    }),
+    codex_task_list: () => ({ tasks: facade.listTaskSummaries() }),
+    codex_task_status: ({ taskId }) => facade.getTaskSummary(String(taskId)),
+    codex_task_events: ({ taskId, afterSeq }) => ({
+      events: facade.getEvents(String(taskId), Number(afterSeq))
+    }),
+    codex_task_wait: async ({ taskId, afterSeq, timeoutMs }) => {
+      await facade.waitForChange(String(taskId), Number(afterSeq), Number(timeoutMs));
+      return {
+        task: facade.getTaskSummary(String(taskId)),
+        events: facade.getEvents(String(taskId), Number(afterSeq))
+      };
+    },
+    codex_pending_approvals: ({ taskId }) => ({
+      approvals: facade.listApprovals(typeof taskId === "string" ? taskId : undefined)
+    }),
+    codex_workspace_status: async ({ taskId }) => ({
+      status: await facade.getWorkspaceStatus(String(taskId))
+    }),
+    codex_workspace_diff: ({ taskId }) => facade.getWorkspaceDiff(String(taskId)),
+    codex_task_contract: ({ taskId }) => facade.getTaskContract(String(taskId)),
+    codex_task_evidence: ({ taskId }) => facade.getTaskEvidence(String(taskId)),
+    codex_verification_profiles: () => facade.listVerificationProfiles(),
+    codex_runtime_capabilities: () => facade.getRuntimeCapabilities(),
+    codex_verifier_status: ({ taskId, runId }) =>
+      facade.getVerifierStatus({
+        taskId: typeof taskId === "string" ? taskId : undefined,
+        runId: typeof runId === "string" ? runId : undefined
+      }),
+    codex_task_start: (input) => facade.startTask(input),
+    codex_task_continue: ({ taskId, instruction, toolSurfaceVersion }) =>
+      facade.continueTask({
+        taskId: String(taskId),
+        instruction: String(instruction),
+        toolSurfaceVersion: typeof toolSurfaceVersion === "string" ? toolSurfaceVersion : undefined
+      }),
+    codex_task_steer: ({ taskId, instruction }) =>
+      facade.steerTask(String(taskId), String(instruction)),
+    codex_task_interrupt: ({ taskId }) => facade.interruptTask(String(taskId)),
+    codex_approval_decide: ({ taskId, approvalId, decision }) =>
+      facade.decideApproval(
+        String(approvalId),
+        decision as "accept" | "decline" | "cancel",
+        typeof taskId === "string" ? taskId : undefined
+      ),
+    codex_task_recover: ({ taskId, toolSurfaceVersion }) =>
+      facade.recoverTask({
+        taskId: String(taskId),
+        toolSurfaceVersion: typeof toolSurfaceVersion === "string" ? toolSurfaceVersion : undefined
+      }),
+    codex_task_verify: ({ taskId, profileId, toolSurfaceVersion }) =>
+      facade.verifyTask({
+        taskId: String(taskId),
+        profileId: String(profileId),
+        toolSurfaceVersion: typeof toolSurfaceVersion === "string" ? toolSurfaceVersion : undefined
+      }),
+    codex_task_decide: (input) => {
+      const common = {
+        taskId: String(input.taskId),
+        rationale: String(input.rationale),
+        acceptedRisks: Array.isArray(input.acceptedRisks) ? input.acceptedRisks.map(String) : undefined,
+        toolSurfaceVersion: typeof input.toolSurfaceVersion === "string" ? input.toolSurfaceVersion : undefined
+      };
+      if (input.decision === "accept") {
+        const criterionConfirmations = (input.criterionConfirmations as Array<Record<string, unknown>>).map(
+          (confirmation): CriterionConfirmationInput => ({
+            criterionId: String(confirmation.criterionId),
+            evidence: String(confirmation.evidence)
+          })
+        );
+        return facade.decideTask({
+          ...common,
+          decision: "accept",
+          expectedSnapshotId: String(input.expectedSnapshotId),
+          criterionConfirmations
+        });
+      }
+      return facade.decideTask({
+        ...common,
+        decision: input.decision as "request_changes" | "block" | "cancel",
+        instruction: typeof input.instruction === "string" ? input.instruction : undefined
+      });
+    },
+    codex_task_cleanup: ({ taskId, toolSurfaceVersion }) =>
+      facade.cleanupTask({
+        taskId: String(taskId),
+        toolSurfaceVersion: typeof toolSurfaceVersion === "string" ? toolSurfaceVersion : undefined
+      }),
+    codex_verifier_reconcile: ({ runId, taskId, toolSurfaceVersion }) =>
+      facade.reconcileVerifier({
+        runId: String(runId),
+        taskId: typeof taskId === "string" ? taskId : undefined,
+        toolSurfaceVersion: typeof toolSurfaceVersion === "string" ? toolSurfaceVersion : undefined
+      })
+  };
+}
+
+export function registeredToolDefinitions(controlEnabled: boolean): readonly ToolDefinition[] {
+  return SUPERVISOR_TOOLS.filter((tool) => controlEnabled || tool.restricted);
+}
+
+export function createSupervisorMcp(facade: SupervisorFacade): McpServer {
   const server = new McpServer(
-    { name: "codex-supervisor-mcp", version: "0.1.0" },
+    { name: "codex-supervisor-mcp", version: TOOL_SURFACE_VERSION },
     {
       instructions:
-        "You are the supervisor. Think, define scope/plan/acceptance criteria, delegate implementation to Codex, observe progress, review diffs, and steer only when evidence shows drift. Codex owns code execution and edits."
+        "ChatGPT is the Supervisor and Codex is the implementation agent. Define and review a Development Contract, use isolated tasks, require snapshot-bound verification before acceptance, and leave commit, push, merge, release, and deployment to a human."
     }
   );
 
-  // Read-only supervision surface. These remain available when
-  // MCP_CONTROL_ENABLED=false so restricted clients can inspect state safely.
-  server.registerTool(
-    "codex_health",
-    {
-      description: "Check whether the local Codex app-server is reachable and authenticated.",
-      annotations: READ_ONLY
-    },
-    async () => result(await orchestrator.health())
-  );
+  const byName = handlers(facade);
+  for (const tool of registeredToolDefinitions(facade.controlEnabled())) {
+    const handler = byName[tool.name];
+    if (!handler) throw new Error(`Missing MCP handler for ${tool.name}`);
 
-  server.registerTool(
-    "codex_task_list",
-    { description: "List known supervisor tasks, newest first.", annotations: READ_ONLY },
-    async () => result({ tasks: orchestrator.listTaskSummaries() })
-  );
-
-  server.registerTool(
-    "codex_task_status",
-    {
-      description: "Read the current status and latest summary for one Codex task.",
-      annotations: READ_ONLY,
-      inputSchema: z.object({ taskId: z.string().uuid() })
-    },
-    async ({ taskId }) => result(orchestrator.getTaskSummary(taskId))
-  );
-
-  server.registerTool(
-    "codex_task_events",
-    {
-      description: "Read Codex events recorded for a task after a sequence number.",
-      annotations: READ_ONLY,
-      inputSchema: z.object({
-        taskId: z.string().uuid(),
-        afterSeq: z.number().int().min(0).default(0)
-      })
-    },
-    async ({ taskId, afterSeq }) => result({ events: orchestrator.getEvents(taskId, afterSeq) })
-  );
-
-  server.registerTool(
-    "codex_task_wait",
-    {
-      description: "Long-poll for a task state/event change for up to 25 seconds.",
-      annotations: READ_ONLY,
-      inputSchema: z.object({
-        taskId: z.string().uuid(),
-        afterSeq: z.number().int().min(0).default(0),
-        timeoutMs: z.number().int().min(1).max(25000).default(20000)
-      })
-    },
-    async ({ taskId, afterSeq, timeoutMs }) => {
-      await orchestrator.waitForChange(taskId, afterSeq, timeoutMs);
-      return result({
-        task: orchestrator.getTaskSummary(taskId),
-        events: orchestrator.getEvents(taskId, afterSeq)
-      });
-    }
-  );
-
-  server.registerTool(
-    "codex_pending_approvals",
-    {
-      description: "List command/file-change approvals currently waiting on the supervisor.",
-      annotations: READ_ONLY,
-      inputSchema: z.object({ taskId: z.string().uuid().optional() })
-    },
-    async ({ taskId }) => result({ approvals: orchestrator.listApprovals(taskId) })
-  );
-
-  server.registerTool(
-    "codex_workspace_status",
-    {
-      description: "Read-only git status for the workspace associated with a task.",
-      annotations: READ_ONLY,
-      inputSchema: z.object({ taskId: z.string().uuid() })
-    },
-    async ({ taskId }) => result({ status: await orchestrator.getWorkspaceStatus(taskId) })
-  );
-
-  server.registerTool(
-    "codex_workspace_diff",
-    {
-      description: "Read-only git diff for the workspace associated with a task.",
-      annotations: READ_ONLY,
-      inputSchema: z.object({ taskId: z.string().uuid() })
-    },
-    async ({ taskId }) => result(await orchestrator.getWorkspaceDiff(taskId))
-  );
-
-  if (!orchestrator.controlEnabled()) return server;
-
-  // Write/control surface. Full MCP clients can use these to make Codex work.
-  server.registerTool(
-    "codex_task_start",
-    {
-      description:
-        "Delegate a new implementation task to Codex. Provide an objective and preferably a plan, acceptance criteria, and constraints.",
-      annotations: CONTROL,
-      inputSchema: z.object({
-        workspace: z.string().min(1).describe("Absolute path to an allowed git workspace"),
-        objective: z.string().min(1),
-        plan: z.array(z.string()).optional(),
-        acceptanceCriteria: z.array(z.string()).optional(),
-        constraints: z.array(z.string()).optional()
-      })
-    },
-    async (input) => result(await orchestrator.startTask(input))
-  );
-
-  server.registerTool(
-    "codex_task_steer",
-    {
-      description: "Steer the active Codex turn when the implementation is drifting.",
-      annotations: CONTROL,
-      inputSchema: z.object({ taskId: z.string().uuid(), instruction: z.string().min(1) })
-    },
-    async ({ taskId, instruction }) => result(await orchestrator.steerTask(taskId, instruction))
-  );
-
-  server.registerTool(
-    "codex_task_interrupt",
-    {
-      description: "Interrupt the active Codex turn before more work is performed.",
-      annotations: INTERRUPT,
-      inputSchema: z.object({ taskId: z.string().uuid() })
-    },
-    async ({ taskId }) => result(await orchestrator.interruptTask(taskId))
-  );
-
-  server.registerTool(
-    "codex_task_continue",
-    {
-      description: "Start a supervised follow-up Codex turn on the same persisted thread.",
-      annotations: CONTROL,
-      inputSchema: z.object({ taskId: z.string().uuid(), instruction: z.string().min(1) })
-    },
-    async ({ taskId, instruction }) =>
-      result(await orchestrator.continueTask({ taskId, instruction }))
-  );
-
-  server.registerTool(
-    "codex_approval_decide",
-    {
-      description:
-        "Resolve a pending command/file-change approval. Locally blocked destructive requests cannot be accepted.",
-      annotations: CONTROL,
-      inputSchema: z.object({
-        approvalId: z.string().uuid(),
-        decision: z.enum(["accept", "acceptForSession", "decline", "cancel"])
-      })
-    },
-    async ({ approvalId, decision }) =>
-      result(await orchestrator.decideApproval(approvalId, decision))
-  );
+    // Registration and manifest export share this exact Zod source. Parsing
+    // again preserves strict/default/refinement semantics even for clients
+    // that omit their own preflight validation.
+    server.registerTool(
+      tool.name,
+      {
+        description: tool.description,
+        annotations: tool.annotations,
+        // Freeze the exact schema advertised by tools/list. The Standard
+        // Schema wrapper also performs JSON-Schema preflight validation; the
+        // Zod parse below remains the authoritative runtime validation layer.
+        inputSchema: fromJsonSchema(inputJsonSchema(tool))
+      },
+      async (rawInput) => {
+        try {
+          const input = tool.inputSchema.parse(rawInput ?? {}) as Record<string, unknown>;
+          return result(await handler(input));
+        } catch (error) {
+          return errorResult(error);
+        }
+      }
+    );
+  }
 
   return server;
 }
