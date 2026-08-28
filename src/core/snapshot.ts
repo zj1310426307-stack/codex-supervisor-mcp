@@ -43,6 +43,12 @@ function snapshotLimit(message: string, details: Record<string, unknown>): Super
   return new SupervisorError("WORKTREE_INVALID", message, 413, details);
 }
 
+function snapshotOpenFlags(): number {
+  const noFollow = typeof fs.constants.O_NOFOLLOW === "number" ? fs.constants.O_NOFOLLOW : 0;
+  const nonBlock = typeof fs.constants.O_NONBLOCK === "number" ? fs.constants.O_NONBLOCK : 0;
+  return fs.constants.O_RDONLY | noFollow | nonBlock;
+}
+
 /** Hash bytes through an already-open descriptor so a path replacement cannot redirect the read. */
 async function hashOpenFile(handle: FileHandle, maxBytes: number): Promise<{ sha256: string; bytes: number }> {
   const hash = createHash("sha256");
@@ -65,6 +71,7 @@ function sameFilesystemIdentity(left: BigIntStats, right: BigIntStats): boolean 
   return left.dev === right.dev &&
     left.ino === right.ino &&
     left.size === right.size &&
+    left.birthtimeNs === right.birthtimeNs &&
     left.mtimeNs === right.mtimeNs &&
     left.ctimeNs === right.ctimeNs;
 }
@@ -81,27 +88,17 @@ async function captureRegularFile(
   absolute: string,
   relative: string,
   initial: BigIntStats,
-  maxBytes: number
+  maxBytes: number,
+  handle: FileHandle
 ): Promise<{ sha256: string; bytes: number }> {
-  if (initial.size > BigInt(maxBytes)) {
-    throw snapshotLimit("Snapshot file exceeds the per-file byte limit", {
-      path: relative,
-      bytes: initial.size.toString(),
-      maxFileBytes: maxBytes
-    });
-  }
-  const noFollow = typeof fs.constants.O_NOFOLLOW === "number" ? fs.constants.O_NOFOLLOW : 0;
-  let handle: FileHandle;
   try {
-    handle = await fsp.open(absolute, fs.constants.O_RDONLY | noFollow);
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === "ELOOP" || code === "ENOENT" || code === "ENOTDIR") {
-      throw workspaceChangedDuringCapture(relative, "file");
+    if (initial.size > BigInt(maxBytes)) {
+      throw snapshotLimit("Snapshot file exceeds the per-file byte limit", {
+        path: relative,
+        bytes: initial.size.toString(),
+        maxFileBytes: maxBytes
+      });
     }
-    throw error;
-  }
-  try {
     const opened = await handle.stat({ bigint: true });
     if (!opened.isFile() || !sameFilesystemIdentity(initial, opened)) {
       throw workspaceChangedDuringCapture(relative, "file");
@@ -118,6 +115,43 @@ async function captureRegularFile(
     const finalPath = await fsp.lstat(absolute, { bigint: true });
     if (!finalPath.isFile() || !sameFilesystemIdentity(readComplete, finalPath)) {
       throw workspaceChangedDuringCapture(relative, "file");
+    }
+
+    // Some Windows/filesystem combinations can report colliding file IDs and
+    // tunnel creation timestamps across a delete-and-rename replacement. A
+    // second independently opened descriptor binds the final directory entry
+    // to the exact bytes captured through the descriptor opened before lstat.
+    let verifier: FileHandle;
+    try {
+      verifier = await fsp.open(absolute, snapshotOpenFlags());
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ELOOP" || code === "ENOENT" || code === "ENOTDIR") {
+        throw workspaceChangedDuringCapture(relative, "file");
+      }
+      throw error;
+    }
+    try {
+      const verificationOpened = await verifier.stat({ bigint: true });
+      if (!verificationOpened.isFile() || !sameFilesystemIdentity(finalPath, verificationOpened)) {
+        throw workspaceChangedDuringCapture(relative, "file");
+      }
+      const verified = await hashOpenFile(verifier, maxBytes);
+      const verificationComplete = await verifier.stat({ bigint: true });
+      const verifiedPath = await fsp.lstat(absolute, { bigint: true });
+      if (
+        !verificationComplete.isFile() ||
+        !verifiedPath.isFile() ||
+        !sameFilesystemIdentity(verificationOpened, verificationComplete) ||
+        !sameFilesystemIdentity(verificationComplete, verifiedPath) ||
+        BigInt(verified.bytes) !== verificationComplete.size ||
+        verified.bytes !== hashed.bytes ||
+        verified.sha256 !== hashed.sha256
+      ) {
+        throw workspaceChangedDuringCapture(relative, "file");
+      }
+    } finally {
+      await verifier.close();
     }
     return hashed;
   } catch (error) {
@@ -381,31 +415,55 @@ async function untrackedManifest(workspace: string, limits: SnapshotLimits): Pro
     if (absolute === root || !absolute.startsWith(root + path.sep)) {
       throw new SupervisorError("WORKTREE_INVALID", "Git returned an untracked path outside the worktree", 500);
     }
-    const stat = await fsp.lstat(absolute, { bigint: true });
-    if (stat.isSymbolicLink()) {
-      const captured = await captureSymbolicLink(absolute, relative, stat, limits.maxFileBytes);
-      totalBytes += captured.bytes;
-      manifest.push({
-        path: relative.replace(/\\/g, "/"),
-        kind: "symlink",
-        size: captured.bytes,
-        sha256: sha256(captured.target),
-        ignored: ignored.has(relative)
-      });
-    } else if (stat.isFile()) {
-      const hashed = await captureRegularFile(absolute, relative, stat, limits.maxFileBytes);
-      totalBytes += hashed.bytes;
-      manifest.push({
-        path: relative.replace(/\\/g, "/"),
-        kind: "file",
-        size: hashed.bytes,
-        sha256: hashed.sha256,
-        ignored: ignored.has(relative)
-      });
-    } else {
-      throw new SupervisorError("WORKTREE_INVALID", "Snapshot encountered an unsupported untracked file type", 409, {
-        path: relative
-      });
+    let candidate: FileHandle | undefined;
+    let candidateError: unknown;
+    try {
+      candidate = await fsp.open(absolute, snapshotOpenFlags());
+    } catch (error) {
+      candidateError = error;
+    }
+    try {
+      const stat = await fsp.lstat(absolute, { bigint: true });
+      if (stat.isSymbolicLink()) {
+        if (candidate) {
+          await candidate.close();
+          candidate = undefined;
+        }
+        const captured = await captureSymbolicLink(absolute, relative, stat, limits.maxFileBytes);
+        totalBytes += captured.bytes;
+        manifest.push({
+          path: relative.replace(/\\/g, "/"),
+          kind: "symlink",
+          size: captured.bytes,
+          sha256: sha256(captured.target),
+          ignored: ignored.has(relative)
+        });
+      } else if (stat.isFile()) {
+        if (!candidate) {
+          const code = (candidateError as NodeJS.ErrnoException | undefined)?.code;
+          if (code === "ELOOP" || code === "ENOENT" || code === "ENOTDIR") {
+            throw workspaceChangedDuringCapture(relative, "file");
+          }
+          throw candidateError;
+        }
+        const opened = candidate;
+        candidate = undefined;
+        const hashed = await captureRegularFile(absolute, relative, stat, limits.maxFileBytes, opened);
+        totalBytes += hashed.bytes;
+        manifest.push({
+          path: relative.replace(/\\/g, "/"),
+          kind: "file",
+          size: hashed.bytes,
+          sha256: hashed.sha256,
+          ignored: ignored.has(relative)
+        });
+      } else {
+        throw new SupervisorError("WORKTREE_INVALID", "Snapshot encountered an unsupported untracked file type", 409, {
+          path: relative
+        });
+      }
+    } finally {
+      if (candidate) await candidate.close();
     }
     if (totalBytes > limits.maxTotalBytes) {
       throw snapshotLimit("Snapshot exceeds the total untracked-content byte limit", {

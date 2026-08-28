@@ -63,10 +63,16 @@ function validCommonContext(params: Record<string, unknown>): boolean {
 }
 
 function isInsideWorkspace(workspace: string, candidate: string): boolean {
-  const root = path.resolve(workspace);
-  const resolved = path.resolve(root, candidate);
-  const relative = path.relative(root, resolved);
-  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
+  const windowsWorkspace = /^[A-Za-z]:[\\/]/.test(workspace) || /^\\\\/.test(workspace);
+  const pathApi = windowsWorkspace ? path.win32 : workspace.startsWith("/") ? path.posix : path;
+
+  // Evaluate paths with the workspace's syntax, not the current host's. This
+  // keeps Windows worktrees fail-closed when the supervisor is tested or run
+  // from a non-Windows host.
+  const root = pathApi.resolve(workspace);
+  const resolved = pathApi.resolve(root, candidate);
+  const relative = pathApi.relative(root, resolved);
+  return relative === "" || (!relative.startsWith(`..${pathApi.sep}`) && relative !== ".." && !pathApi.isAbsolute(relative));
 }
 
 function commandText(value: unknown): string | undefined {

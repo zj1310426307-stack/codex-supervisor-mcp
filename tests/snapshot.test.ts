@@ -102,31 +102,71 @@ test("snapshot rejects a same-size same-mtime untracked file replacement", async
   const stableTimestamp = new Date(Math.floor(Date.now() / 1000) * 1000);
   await fs.utimes(victim, stableTimestamp, stableTimestamp);
   await fs.utimes(replacement, stableTimestamp, stableTimestamp);
-  const victimStat = await fs.stat(victim);
-  const replacementStat = await fs.stat(replacement);
+  const victimStat = await fs.stat(victim, { bigint: true });
+  const replacementStat = await fs.stat(replacement, { bigint: true });
   assert.equal(replacementStat.size, victimStat.size);
-  assert.equal(replacementStat.mtimeMs, victimStat.mtimeMs);
+  assert.equal(replacementStat.mtimeNs, victimStat.mtimeNs);
 
   const originalDescriptor = Object.getOwnPropertyDescriptor(fs, "lstat");
+  const originalOpenDescriptor = Object.getOwnPropertyDescriptor(fs, "open");
   assert.ok(originalDescriptor);
+  assert.ok(originalOpenDescriptor);
   const originalLstat = fs.lstat;
+  const originalOpen = fs.open;
   let replaced = false;
+  // Model Windows runners where file IDs collide and creation time is tunneled
+  // to the new directory entry. The final content check must still reject.
+  const maskLegacyIdentity = <T extends object>(actual: T): T => new Proxy(actual, {
+    get(target, property, receiver) {
+      if (
+        property === "dev" || property === "ino" || property === "birthtimeNs" ||
+        property === "ctimeNs"
+      ) {
+        return Reflect.get(victimStat, property);
+      }
+      const value = Reflect.get(target, property, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    }
+  });
   Object.defineProperty(fs, "lstat", {
     ...originalDescriptor,
     value: async (...args: unknown[]) => {
       const result = await Reflect.apply(originalLstat, fs, args);
-      if (!replaced && path.resolve(String(args[0])) === path.resolve(victim)) {
-        replaced = true;
-        if (process.platform === "win32") await fs.unlink(victim);
-        await fs.rename(replacement, victim);
+      if (path.resolve(String(args[0])) === path.resolve(victim)) {
+        if (!replaced) {
+          replaced = true;
+          if (process.platform === "win32") await fs.unlink(victim);
+          await fs.rename(replacement, victim);
+          return result;
+        }
+        return maskLegacyIdentity(result);
       }
       return result;
+    }
+  });
+  Object.defineProperty(fs, "open", {
+    ...originalOpenDescriptor,
+    value: async (...args: unknown[]) => {
+      const handle = await Reflect.apply(originalOpen, fs, args);
+      if (path.resolve(String(args[0])) !== path.resolve(victim)) return handle;
+      return new Proxy(handle, {
+        get(target, property, receiver) {
+          if (property === "stat") {
+            return async (...statArgs: unknown[]) => maskLegacyIdentity(
+              await Reflect.apply(target.stat, target, statArgs) as object
+            );
+          }
+          const value = Reflect.get(target, property, receiver);
+          return typeof value === "function" ? value.bind(target) : value;
+        }
+      });
     }
   });
   try {
     await assert.rejects(captureWorkspaceSnapshot(repo), /Workspace changed while a file was captured/);
   } finally {
     Object.defineProperty(fs, "lstat", originalDescriptor);
+    Object.defineProperty(fs, "open", originalOpenDescriptor);
   }
   assert.equal(replaced, true);
 });

@@ -42,6 +42,7 @@ test("absolute command path operands must stay inside the workspace", () => {
   assert.equal(classifyApproval(commandMethod, commandParams("cat /etc/passwd"), "/repo").risk, "blocked");
   assert.equal(classifyApproval(commandMethod, commandParams("type C:\\outside\\secret.txt"), "C:\\repo").risk, "blocked");
   assert.equal(classifyApproval(commandMethod, commandParams("cat /repo/README.md"), "/repo").risk, "normal");
+  assert.equal(classifyApproval(commandMethod, commandParams("type C:\\repo\\README.md"), "C:\\repo").risk, "normal");
 });
 
 test("network, permission, and policy escalation fields are fail-closed", () => {
