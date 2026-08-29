@@ -1,0 +1,28 @@
+config_version: 1
+
+# Supply CONTROL_PLANE_TUNNEL_ID and CONTROL_PLANE_API_KEY only at runtime.
+# They are intentionally absent from this checked-in profile.
+control_plane:
+  base_url: https://api.openai.com
+  max_inflight_requests: 8
+
+health:
+  listen_addr: 127.0.0.1:8080
+
+admin_ui:
+  open_browser: false
+
+log:
+  level: info
+  format: json
+
+mcp:
+  server_urls:
+    - channel: main
+      url: http://127.0.0.1:8787/mcp
+  extra_headers:
+    Authorization: env:MCP_TUNNEL_AUTHORIZATION
+  discovery_extra_headers:
+    Authorization: env:MCP_TUNNEL_AUTHORIZATION
+  startup_wait_timeout: 30s
+  max_concurrent_requests: 4

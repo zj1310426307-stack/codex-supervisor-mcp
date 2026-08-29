@@ -95,6 +95,14 @@ Development E2E additionally requires `CODEX_SUPERVISOR_LIVE_E2E=1`, a reviewed 
 
 The 2026-08-28 WSL2 local-live baseline is **PASS - LOCAL READY / CHATGPT WEB NOT_RUN**: Codex CLI 0.150.1 compatibility, real App Server handshake, real development E2E, digest-pinned OCI verification, cleanup, and both MCP scans passed. The successful E2E used the explicit optional `CODEX_MODEL=gpt-5.4-mini`; the default model remains unset. This is not a Production Ready claim because the Secure MCP Tunnel and real ChatGPT Web connector tracks have not run.
 
+Phase 05 now includes a read-only Restricted Secure MCP Tunnel preflight and an
+environment-backed `tunnel-client` profile template. After the operator supplies
+an approved tunnel identity, a runtime API key, and a separate local bearer in
+the WSL2 process environment, run `npm run preflight:tunnel`. This command does
+not install or start the client, create a tunnel, change ChatGPT settings, or
+promote any external track to PASS. Follow
+`docs/ORCH-PHASE-05-CHATGPT-ACCEPTANCE.md` for the real operator sequence.
+
 `npm run smoke:mcp` is deterministic local evidence but uses the actual HTTP MCP server and official SDK client. It writes Restricted and Full scan artifacts under `artifacts/validation/`. The real Codex handshake writes `artifacts/live/<run-id>/handshake-summary.json` only after explicit opt-in.
 
 The root Dockerfile packages only the experimental MCP service. It is not the recommended full Supervisor runtime and contains no Codex CLI, Git workflow, credentials, source repository, or persistent state by default. Run the Supervisor natively in WSL2 and use the separate verifier image workflow in `scripts/verifier/`.
@@ -108,3 +116,4 @@ The root Dockerfile packages only the experimental MCP service. It is not the re
 - WSL2 runtime and preflight: `docs/WSL2-RUNTIME.md`
 - ChatGPT Web operator acceptance: `docs/ORCH-PHASE-04-CHATGPT-WEB-ACCEPTANCE.md`
 - Current validation record: `docs/ORCH-PHASE-04-VALIDATION.md`
+- Phase 05 tunnel design and acceptance: `docs/ORCH-PHASE-05-DESIGN.md`, `docs/ORCH-PHASE-05-CHATGPT-ACCEPTANCE.md`

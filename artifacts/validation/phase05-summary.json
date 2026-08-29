@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "phase": "ORCH-PHASE-05",
+  "generatedAt": "2026-08-29T10:34:33.304Z",
+  "project": {
+    "name": "codex-supervisor-mcp",
+    "version": "0.4.0",
+    "baselineCommit": "abdde6c3dfdea82d6b0bab936189a898b8a6dd13",
+    "branch": "orch/phase-05-restricted-tunnel-ready"
+  },
+  "scope": "Restricted Secure MCP Tunnel preparation",
+  "deterministicPreparation": {
+    "status": "PASS",
+    "readOnlyPreflightImplemented": true,
+    "loopbackRequired": true,
+    "restrictedRequired": true,
+    "credentialSeparationRequired": true,
+    "environmentBackedHeadersRequired": true,
+    "localReadinessRequired": true
+  },
+  "secureTunnel": {
+    "status": "NOT_RUN",
+    "clientVersion": "NOT_INSTALLED_IN_WSL",
+    "doctor": "NOT_RUN",
+    "daemonHealthy": "NOT_RUN",
+    "daemonReady": "NOT_RUN",
+    "tunnelIdentifierIncluded": false,
+    "credentialsIncluded": false
+  },
+  "environmentObservation": {
+    "wslProjectBranch": "orch/phase-04-live-ready",
+    "wslProjectSync": "DEFERRED_EXISTING_DIRTY_WORKTREE",
+    "writesToWslProject": false,
+    "tunnelClientInstallAttempted": false
+  },
+  "chatGpt": {
+    "restricted": "NOT_RUN",
+    "full": "NOT_RUN",
+    "developerMode": "NOT_CHECKED",
+    "productionReady": false
+  },
+  "disposition": "READY_FOR OPERATOR TUNNEL SETUP / EXTERNAL NOT_RUN",
+  "evidence": {
+    "phase04": "artifacts/validation/phase04-summary.json",
+    "profileTemplate": "config/tunnel-client.restricted.example.yaml",
+    "acceptanceRunbook": "docs/ORCH-PHASE-05-CHATGPT-ACCEPTANCE.md"
+  },
+  "officialReferences": [
+    "https://developers.openai.com/api/docs/guides/secure-mcp-tunnels",
+    "https://developers.openai.com/plugins/deploy/connect-chatgpt",
+    "https://github.com/openai/tunnel-client/blob/master/docs/configuration.md"
+  ]
+}

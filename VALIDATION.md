@@ -12,3 +12,9 @@ E2E, digest-pinned OCI verification, exact cleanup proof, and both MCP scans
 passed. The complete WSL2 suite passed 158/158 tests and the dependency audit
 reported zero vulnerabilities. ChatGPT Web remains a separate `NOT_RUN` track;
 therefore the result is Local Ready, not Production Ready.
+
+Phase 05 preparation adds deterministic tests, a read-only tunnel preflight, a
+secret-free Restricted `tunnel-client` profile template, and an honest operator
+acceptance contract. `scripts/validate-phase05.mjs` proves that ordinary CI does
+not require external credentials and that Secure Tunnel/ChatGPT results remain
+`NOT_RUN` until real operator evidence exists.

@@ -15,6 +15,14 @@
 - Actual Streamable HTTP scans through the official MCP client SDK
 - Local digest-pinned verifier image build/inspection workflow
 - ChatGPT Web operator acceptance template with Restricted-first posture
+- Phase 05 Restricted Secure MCP Tunnel preflight and environment-backed profile template
+
+## Phase 05 external acceptance pending
+
+- Create/associate an approved OpenAI-hosted tunnel and runtime key
+- Prove `tunnel-client doctor`, process-running, health, and readiness
+- Complete real ChatGPT developer-mode Restricted discovery and prompt cases
+- Consider Full-control only after a separate explicit operator authorization
 
 ## Candidate post-v0.4 work
 
@@ -22,7 +30,7 @@
 - Multiple authenticated human supervisors with explicit ownership transfer
 - Stronger Windows process identity attestation beyond best-effort process-tree proof
 - Signed tool manifests and ledger backup/restore tooling
-- Supported outbound tunnel packaging when an official workspace capability is available
+- Managed service packaging for a proven outbound tunnel runtime
 
 ## Out of scope without a new phase
 
