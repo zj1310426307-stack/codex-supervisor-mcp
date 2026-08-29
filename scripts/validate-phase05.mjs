@@ -51,6 +51,9 @@ if (packageJson) {
   if (!String(packageJson.scripts?.["preflight:tunnel"]).includes("preflight-secure-tunnel.ts")) {
     failures.push("preflight:tunnel script is missing");
   }
+  if (!String(packageJson.scripts?.["preflight:tunnel:full"]).includes("--mode full")) {
+    failures.push("preflight:tunnel:full script is missing");
+  }
   if (!String(packageJson.scripts?.check).includes("validate:phase05")) failures.push("check must include validate:phase05");
   if (String(packageJson.scripts?.check).includes("preflight:tunnel")) {
     failures.push("ordinary check must not require live tunnel credentials or a running tunnel client");
@@ -137,7 +140,10 @@ for (const marker of [
   "tunnel-client",
   "help\", \"quickstart",
   "MCP_DISCOVERY_EXTRA_HEADERS",
-  "CONTROL_PLANE_API_KEY"
+  "CONTROL_PLANE_API_KEY",
+  "FULL_CONTROL_ACCEPTANCE_AUTHORIZED",
+  "FULL_CONTROL_NEW_CHATGPT_APP_REQUIRED",
+  "localToolDiscovery"
 ]) {
   if (!preflight.includes(marker)) failures.push(`secure tunnel preflight missing ${marker}`);
 }
@@ -153,7 +159,7 @@ for (const document of [design, acceptance]) {
     if (!document.includes(url)) failures.push(`Phase 05 document missing official reference ${url}`);
   }
 }
-if (!acceptance.includes("Exactly 13 tools") || !acceptance.includes("Restricted never upgrades")) {
+if (!acceptance.includes("Exactly 13 tools") || !acceptance.includes("Restricted never upgrades") || !acceptance.includes("new ChatGPT developer-mode app")) {
   failures.push("Phase 05 acceptance boundaries are incomplete");
 }
 

@@ -2,12 +2,15 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { isLoopbackHost, isPlaceholderBearerToken } from "../src/config.js";
 import { redact } from "../src/core/redaction.js";
+import { canonicalJson, createToolManifest, TOOL_SURFACE_VERSION } from "../src/mcp/tool-catalog.js";
 
 const execFileAsync = promisify(execFile);
 
 export type TunnelPreflightStatus = "PASS" | "BLOCKED_BY_CONFIGURATION" | "BLOCKED_BY_ENVIRONMENT";
+export type TunnelPreflightMode = "restricted" | "full";
 
 export interface TunnelPreflightCheck {
   status: TunnelPreflightStatus;
@@ -21,7 +24,7 @@ export interface SecureTunnelPreflightReport {
   status: TunnelPreflightStatus;
   checkedAt: string;
   readOnly: true;
-  mode: "restricted";
+  mode: TunnelPreflightMode;
   containsSensitiveValues: false;
   localMcp: {
     scheme?: string;
@@ -45,6 +48,12 @@ export type TunnelReadinessProbe = (url: URL, authorization: string, timeoutMs: 
   ok: boolean;
   detail: string;
 }>;
+export type TunnelToolProbe = (
+  url: URL,
+  authorization: string,
+  mode: TunnelPreflightMode,
+  timeoutMs: number
+) => Promise<{ ok: boolean; detail: string }>;
 
 async function defaultRunner(program: string, args: string[]): Promise<CommandResult> {
   try {
@@ -96,6 +105,52 @@ async function defaultReadinessProbe(url: URL, authorization: string, timeoutMs:
   }
 }
 
+export async function probeLocalToolSurface(
+  url: URL,
+  authorization: string,
+  mode: TunnelPreflightMode,
+  timeoutMs: number
+): Promise<{ ok: boolean; detail: string }> {
+  const transport = new StreamableHTTPClientTransport(url, {
+    requestInit: { headers: { authorization } }
+  });
+  const client = new Client({ name: "codex-supervisor-tunnel-preflight", version: TOOL_SURFACE_VERSION });
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    const listed = await Promise.race([
+      (async () => {
+        await client.connect(transport);
+        return client.listTools();
+      })(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("MCP tools/list probe timed out")), timeoutMs);
+      })
+    ]);
+    const actual = listed.tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      annotations: tool.annotations,
+      inputSchema: tool.inputSchema
+    }));
+    const expected = createToolManifest(mode);
+    if (canonicalJson(actual) !== canonicalJson(expected.tools)) {
+      return { ok: false, detail: `local MCP tools/list does not match the frozen ${mode} catalog` };
+    }
+    return {
+      ok: true,
+      detail: `local MCP tools/list matches ${mode}: ${expected.toolCount} tools, schema ${expected.toolSchemaHash}`
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      detail: `local MCP tools/list failed: ${error instanceof Error ? error.message : String(error)}`
+    };
+  } finally {
+    if (timer) clearTimeout(timer);
+    await client.close().catch(() => undefined);
+  }
+}
+
 function check(status: TunnelPreflightStatus, detail: string, command?: string): TunnelPreflightCheck {
   return { status, detail, ...(command ? { command } : {}) };
 }
@@ -109,6 +164,27 @@ function validPort(raw: string | undefined): number | undefined {
 
 function isRestricted(raw: string | undefined): boolean {
   return raw === undefined || ["0", "false", "no", "off"].includes(raw.trim().toLowerCase());
+}
+
+function isFull(raw: string | undefined): boolean {
+  return raw !== undefined && ["1", "true", "yes", "on"].includes(raw.trim().toLowerCase());
+}
+
+function isExplicitTrue(raw: string | undefined): boolean {
+  return raw?.trim().toLowerCase() === "true";
+}
+
+function configuredWorkspaceRoots(raw: string | undefined): string[] {
+  return (raw ?? "")
+    .split(";")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => path.resolve(value));
+}
+
+function isInside(parent: string, candidate: string): boolean {
+  const relative = path.relative(parent, candidate);
+  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
 }
 
 function usesAuthorizationReference(raw: string | undefined): boolean {
@@ -127,11 +203,15 @@ export async function collectSecureTunnelPreflight(options: {
   env?: NodeJS.ProcessEnv;
   runner?: TunnelPreflightRunner;
   readinessProbe?: TunnelReadinessProbe;
+  toolProbe?: TunnelToolProbe;
+  mode?: TunnelPreflightMode;
   now?: () => Date;
 } = {}): Promise<SecureTunnelPreflightReport> {
   const env = options.env ?? process.env;
   const runner = options.runner ?? defaultRunner;
   const readinessProbe = options.readinessProbe ?? defaultReadinessProbe;
+  const toolProbe = options.toolProbe ?? probeLocalToolSurface;
+  const mode = options.mode ?? "restricted";
   const now = options.now ?? (() => new Date());
   const checks: Record<string, TunnelPreflightCheck> = {};
 
@@ -140,9 +220,62 @@ export async function collectSecureTunnelPreflight(options: {
     ? check("PASS", "Supervisor bind is loopback-only")
     : check("BLOCKED_BY_CONFIGURATION", "MCP_HOST must remain loopback for Secure MCP Tunnel");
 
-  checks.restrictedMode = isRestricted(env.MCP_CONTROL_ENABLED)
-    ? check("PASS", "MCP_CONTROL_ENABLED is restricted")
-    : check("BLOCKED_BY_CONFIGURATION", "MCP_CONTROL_ENABLED must be false for the first tunnel acceptance");
+  if (mode === "restricted") {
+    checks.restrictedMode = isRestricted(env.MCP_CONTROL_ENABLED)
+      ? check("PASS", "MCP_CONTROL_ENABLED is restricted")
+      : check("BLOCKED_BY_CONFIGURATION", "MCP_CONTROL_ENABLED must be false for the first tunnel acceptance");
+  } else {
+    checks.fullControlMode = isFull(env.MCP_CONTROL_ENABLED)
+      ? check("PASS", "MCP_CONTROL_ENABLED explicitly enables Full-control")
+      : check("BLOCKED_BY_CONFIGURATION", "MCP_CONTROL_ENABLED must be true for a Full-control acceptance");
+    checks.fullControlOptIn = isExplicitTrue(env.FULL_CONTROL_ACCEPTANCE_AUTHORIZED)
+      ? check("PASS", "the operator recorded an explicit temporary Full-control opt-in")
+      : check("BLOCKED_BY_CONFIGURATION", "the explicit Full-control opt-in flag must be exactly true");
+    checks.separateChatGptApp = isExplicitTrue(env.FULL_CONTROL_NEW_CHATGPT_APP_REQUIRED)
+      ? check("PASS", "the operator acknowledged that Full-control requires a new ChatGPT app instance")
+      : check("BLOCKED_BY_CONFIGURATION", "FULL_CONTROL_NEW_CHATGPT_APP_REQUIRED must be exactly true; never reuse the Restricted app");
+
+    const workspaceRoots = configuredWorkspaceRoots(env.CODEX_WORKSPACE_ROOTS);
+    checks.singleTemporaryWorkspace = workspaceRoots.length === 1 && path.isAbsolute(workspaceRoots[0]!)
+      ? check("PASS", "exactly one absolute temporary workspace root is configured")
+      : check("BLOCKED_BY_CONFIGURATION", "Full-control acceptance requires exactly one absolute CODEX_WORKSPACE_ROOTS entry");
+
+    const workspace = workspaceRoots.length === 1 ? workspaceRoots[0] : undefined;
+    if (workspace) {
+      const [topLevel, head, status, remotes] = await Promise.all([
+        runner("git", ["-C", workspace, "rev-parse", "--show-toplevel"]),
+        runner("git", ["-C", workspace, "rev-parse", "--verify", "HEAD"]),
+        runner("git", ["-C", workspace, "status", "--porcelain"]),
+        runner("git", ["-C", workspace, "remote"])
+      ]);
+      const exactRoot = topLevel.ok && path.resolve(topLevel.stdout) === workspace;
+      const isolated = exactRoot && head.ok && status.ok && status.stdout.trim() === "" && remotes.ok && remotes.stdout.trim() === "";
+      checks.temporaryRepository = isolated
+        ? check("PASS", "workspace is a clean initialized Git repository with no remote")
+        : check("BLOCKED_BY_CONFIGURATION", "workspace must be the exact root of a clean initialized Git repository with no remote");
+    } else {
+      checks.temporaryRepository = check("BLOCKED_BY_CONFIGURATION", "temporary repository checks require one workspace root");
+    }
+
+    const stateRaw = env.SUPERVISOR_STATE_FILE?.trim();
+    const worktreeRaw = env.SUPERVISOR_WORKTREE_ROOT?.trim();
+    const stateFile = stateRaw && path.isAbsolute(stateRaw) ? path.resolve(stateRaw) : undefined;
+    const worktreeRoot = worktreeRaw && path.isAbsolute(worktreeRaw) ? path.resolve(worktreeRaw) : undefined;
+    const stateDirectory = stateFile ? path.dirname(stateFile) : undefined;
+    const stateIsolated = Boolean(
+      workspace
+      && stateFile
+      && worktreeRoot
+      && !isInside(workspace, stateFile)
+      && !isInside(workspace, worktreeRoot)
+      && stateDirectory
+      && isInside(stateDirectory, worktreeRoot)
+      && worktreeRoot !== stateDirectory
+    );
+    checks.isolatedSupervisorState = stateIsolated
+      ? check("PASS", "state and worktrees use an explicit isolated directory outside the temporary repository")
+      : check("BLOCKED_BY_CONFIGURATION", "set absolute isolated SUPERVISOR_STATE_FILE and SUPERVISOR_WORKTREE_ROOT outside the temporary repository");
+  }
 
   const port = validPort(env.MCP_PORT);
   checks.localPort = port
@@ -244,10 +377,18 @@ export async function collectSecureTunnelPreflight(options: {
     checks.localReadiness = readiness.ok
       ? check("PASS", readiness.detail)
       : check("BLOCKED_BY_ENVIRONMENT", readiness.detail);
+    const discovery = await toolProbe(localUrl, tunnelAuthorization, mode, 5_000);
+    checks.localToolDiscovery = discovery.ok
+      ? check("PASS", discovery.detail)
+      : check("BLOCKED_BY_ENVIRONMENT", discovery.detail);
   } else {
     checks.localReadiness = check(
       "BLOCKED_BY_CONFIGURATION",
       "local readiness was not attempted until the loopback URL and authorization are valid"
+    );
+    checks.localToolDiscovery = check(
+      "BLOCKED_BY_CONFIGURATION",
+      "local tools/list was not attempted until the loopback URL and authorization are valid"
     );
   }
 
@@ -269,7 +410,7 @@ export async function collectSecureTunnelPreflight(options: {
     status,
     checkedAt: now().toISOString(),
     readOnly: true,
-    mode: "restricted",
+    mode,
     containsSensitiveValues: false,
     localMcp: localUrlValid && localUrl
       ? {
@@ -285,7 +426,12 @@ export async function collectSecureTunnelPreflight(options: {
 }
 
 async function main(): Promise<void> {
-  const report = await collectSecureTunnelPreflight();
+  const modeIndex = process.argv.indexOf("--mode");
+  const rawMode = modeIndex >= 0 ? process.argv[modeIndex + 1] : "restricted";
+  if (rawMode !== "restricted" && rawMode !== "full") {
+    throw new Error("--mode must be restricted or full");
+  }
+  const report = await collectSecureTunnelPreflight({ mode: rawMode });
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   if (report.status !== "PASS") process.exitCode = 2;
 }

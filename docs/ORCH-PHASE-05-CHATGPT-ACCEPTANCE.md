@@ -91,6 +91,13 @@ false.
    review the discovered tools and annotations.
 7. Execute the Restricted cases below. Stop/revoke the connection afterward.
 
+For a separately authorized Full-control run, first start the isolated
+Full-control Supervisor, run `npm run preflight:tunnel:full`, and then create a
+new ChatGPT developer-mode app while the 23-tool service is live. Do not reuse
+the Restricted app or interpret permission reset/reconnect as a schema refresh.
+The new app must visibly expose `codex_task_start` before any control prompt is
+attempted.
+
 ## Required Restricted evidence
 
 | Field | Required evidence |

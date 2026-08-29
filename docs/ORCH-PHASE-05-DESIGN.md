@@ -62,6 +62,13 @@ following are true:
 The preflight does not install software, create a tunnel, open a browser, start a
 daemon, change a workspace policy, or claim remote acceptance.
 
+`npm run preflight:tunnel:full` is a separate read-only gate. It additionally
+requires explicit temporary Full-control authorization, acknowledgement that a
+new ChatGPT app instance will be created, exactly one clean initialized Git
+repository with no remote, isolated absolute state/worktree paths outside that
+repository, `MCP_CONTROL_ENABLED=true`, and an exact live 23-tool `tools/list`
+match. It does not authorize reusing or upgrading the Restricted app.
+
 ## External gates
 
 The following remain human/operator-controlled and are never inferred from local
@@ -72,6 +79,8 @@ tests:
 3. `tunnel-client doctor` success and healthy/ready daemon evidence;
 4. ChatGPT developer mode and Restricted tool discovery;
 5. prompt, follow-up, negative, error, annotation, and shutdown evidence;
-6. any later Full-control trial, which requires a new explicit authorization.
+6. any later Full-control trial, which requires a new explicit authorization
+   and a newly created ChatGPT app instance scanned while Full-control is live;
+   the Restricted app and its stored 13-tool definition are never reused.
 
 Commit, push, merge, release, and deployment remain human-only in both modes.

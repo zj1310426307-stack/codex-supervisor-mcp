@@ -12,10 +12,12 @@ Record the date, ChatGPT plan/workspace, administrator policy, connector URL typ
 
 ## Full-control track
 
-1. Use only a temporary Git repository with no remote and enable Full-control explicitly.
-2. Confirm exactly 23 tools and accurate annotations.
-3. Exercise structured task start, observation, steer/interrupt, exact approval handling, trusted verification, decision, and cleanup.
-4. Confirm the client asks for appropriate confirmation on destructive tools.
-5. Confirm no commit, push, merge, release, or deploy occurs.
+1. Use only a clean temporary Git repository with no remote, isolated Supervisor state/worktree paths, and enable Full-control explicitly.
+2. Set `FULL_CONTROL_ACCEPTANCE_AUTHORIZED=true` and `FULL_CONTROL_NEW_CHATGPT_APP_REQUIRED=true`, then run `npm run preflight:tunnel:full` while the local Supervisor is ready.
+3. Create a new ChatGPT developer-mode app while the Full-control service and tunnel are running. Never reuse, reset, or upgrade the Restricted app: its stored 13-tool definition is separate evidence.
+4. Confirm the new app exposes exactly 23 tools and accurate annotations before opening the acceptance chat.
+5. Exercise structured task start, observation, steer/interrupt, exact approval handling, trusted verification, decision, and cleanup.
+6. Confirm the client asks for appropriate confirmation on destructive tools.
+7. Confirm no commit, push, merge, release, or deploy occurs.
 
 Record each track as `PASS`, `FAIL`, `BLOCKED_BY_PLAN`, `BLOCKED_BY_WORKSPACE_POLICY`, `BLOCKED_BY_ENVIRONMENT`, or `NOT_RUN`. An unavailable UI is not a pass.
