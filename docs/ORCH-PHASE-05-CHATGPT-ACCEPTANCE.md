@@ -16,12 +16,14 @@ Official connection references:
 |---|---|---|
 | Secure MCP Tunnel | PASS | Operator supplied preflight, doctor, healthy/ready/connected UI, real forwarding, and shutdown evidence |
 | ChatGPT Restricted (13 tools) | PASS | Real developer-mode discovery and bounded read-only calls passed through the tunnel |
-| ChatGPT Full-control (23 tools) | NOT_RUN | Restricted acceptance and a separate explicit authorization are prerequisites |
+| ChatGPT Full-control (23 tools) | BLOCKED_BY_ENVIRONMENT | Local health advertised 23 tools, but `codex_task_start` was unavailable in the current ChatGPT session; no task or write occurred |
 
 The recorded result is based on operator-supplied external evidence. The
 repository agent did not execute the ChatGPT-side calls and does not claim that
 it did. The redacted structured record is
-`artifacts/validation/phase05-chatgpt-restricted-live.json`.
+`artifacts/validation/phase05-chatgpt-restricted-live.json`. The separately
+authorized Full-control attempt is recorded in
+`artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json`.
 
 ## Recorded Restricted evidence
 
@@ -43,8 +45,30 @@ Recorded at `2026-08-29T20:34:55.8456663+08:00` (`Asia/Shanghai`):
 - Shutdown: `LOCAL_MCP_STOPPED` and `TUNNEL_STOPPED`.
 
 No bearer value, API key, authorization header, cookie, account identifier, or
-private URL is stored. Full-control remains `NOT_RUN`, and this Restricted PASS
-does not authorize an upgrade.
+private URL is stored. The later Full-control attempt does not change or weaken
+this Restricted PASS.
+
+## Recorded Full-control attempt
+
+Recorded at `2026-08-30T00:12:04.1755983+08:00` (`Asia/Shanghai`):
+
+- The operator explicitly authorized a temporary Full-control acceptance run.
+- The target was an isolated temporary Git repository with no remote.
+- Supervisor health reported `mode=full`, `controlEnabled=true`, 23 advertised
+  tools, and schema hash
+  `b3b0284da37852d182a0e1d8b403634c176b41d468dfdac7290485913c4ecc00`.
+- The current ChatGPT session did not expose `codex_task_start` and returned
+  `FULL_CONTROL_TOOL_UNAVAILABLE`.
+- No control tool was called, no task ID was created, and no repository write,
+  commit, push, merge, release, or deployment occurred.
+- Available runtime logs showed intermittent control-plane polling failures and
+  Codex model-refresh child-exit timeouts. These observations do not establish
+  a single root cause.
+- The exact Supervisor and tunnel processes were stopped, and both local ports
+  were confirmed closed. The temporary repository is retained for audit.
+
+The result is `BLOCKED_BY_ENVIRONMENT`, not PASS. Production readiness remains
+false.
 
 ## Operator sequence
 

@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "phase": "ORCH-PHASE-05",
+  "track": "ChatGPT Full-control",
+  "recordedAt": "2026-08-30T00:12:04.1755983+08:00",
+  "timezone": "Asia/Shanghai",
+  "status": "BLOCKED_BY_ENVIRONMENT",
+  "reasonCode": "FULL_CONTROL_TOOL_UNAVAILABLE",
+  "evidenceSource": "Operator-supplied ChatGPT results and WSL runtime output, plus repository-agent process and log inspection",
+  "repositoryAgentExecutedChatGptCalls": false,
+  "containsSensitiveValues": false,
+  "redaction": {
+    "credentialsIncluded": false,
+    "authorizationHeadersIncluded": false,
+    "cookiesIncluded": false,
+    "accountIdentifiersIncluded": false,
+    "tunnelReference": "tunnel_6a92...5594"
+  },
+  "authorization": {
+    "explicitTemporaryFullControlAuthorization": true,
+    "perActionConfirmationRequired": true,
+    "execPolicyAmendmentAuthorized": false
+  },
+  "isolation": {
+    "temporaryRepository": true,
+    "repositoryRemoteConfigured": false,
+    "productionRepositoryTargeted": false,
+    "packageInstallPerformed": false,
+    "networkWritePerformed": false
+  },
+  "supervisor": {
+    "version": "0.4.0",
+    "mode": "full",
+    "controlEnabled": true,
+    "advertisedToolCount": 23,
+    "toolSchemaHash": "b3b0284da37852d182a0e1d8b403634c176b41d468dfdac7290485913c4ecc00",
+    "codexVersion": "codex-cli 0.150.1",
+    "appServerReady": true
+  },
+  "chatGptSurface": {
+    "connectorReachable": true,
+    "healthCallSucceeded": true,
+    "targetTool": "codex_task_start",
+    "targetToolAvailableInCurrentSession": false,
+    "operatorResult": "FULL_CONTROL_TOOL_UNAVAILABLE",
+    "freshToolsListObservedInAvailableTunnelLog": false
+  },
+  "execution": {
+    "controlToolCalled": false,
+    "taskStarted": false,
+    "taskId": null,
+    "repositoryWritePerformed": false,
+    "commitPerformed": false,
+    "pushPerformed": false,
+    "mergePerformed": false,
+    "releasePerformed": false,
+    "deployPerformed": false
+  },
+  "runtimeObservations": {
+    "tunnelInitiallyHealthyAndReady": true,
+    "intermittentControlPlanePollTimeoutsObserved": true,
+    "intermittentEofAndTlsHandshakeTimeoutsObserved": true,
+    "codexModelRefreshChildExitTimeoutsObserved": true,
+    "causalAttribution": "UNDETERMINED"
+  },
+  "shutdown": {
+    "supervisorStopped": true,
+    "tunnelClientStopped": true,
+    "supervisorPortClosed": true,
+    "tunnelHealthPortClosed": true,
+    "temporaryRepositoryPreservedForAudit": true
+  },
+  "result": "BLOCKED_BY_ENVIRONMENT",
+  "productionReady": false,
+  "residualRisk": "The local Full-control surface advertised 23 tools, but the current ChatGPT session did not expose codex_task_start. Control-plane instability was also observed, so no Full-control control-path acceptance claim is made."
+}

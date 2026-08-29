@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "phase": "ORCH-PHASE-05",
-  "generatedAt": "2026-08-29T20:34:55.8456663+08:00",
+  "generatedAt": "2026-08-30T00:12:04.1755983+08:00",
   "project": {
     "name": "codex-supervisor-mcp",
     "version": "0.4.0",
@@ -63,22 +63,27 @@
   },
   "chatGpt": {
     "restricted": "PASS",
-    "full": "NOT_RUN",
+    "full": "BLOCKED_BY_ENVIRONMENT",
     "developerMode": "ENABLED",
     "toolDiscovery": "PASS_13_OF_13",
     "directHealth": "PASS",
     "followUp": "PASS_NO_IDENTIFIER_INVENTION",
     "unsupportedMutation": "PASS_REFUSED",
     "invalidIdentifier": "PASS_FAILED_CLOSED",
+    "fullControlToolExposure": "FULL_CONTROL_TOOL_UNAVAILABLE",
+    "fullControlTaskStarted": false,
+    "fullControlRepositoryWrite": false,
+    "fullControlShutdown": "PASS",
     "shutdown": "PASS",
     "productionReady": false
   },
-  "disposition": "RESTRICTED_ACCEPTANCE_PASS / FULL_CONTROL_NOT_RUN",
+  "disposition": "RESTRICTED_ACCEPTANCE_PASS / FULL_CONTROL_BLOCKED_BY_ENVIRONMENT",
   "evidence": {
     "phase04": "artifacts/validation/phase04-summary.json",
     "profileTemplate": "config/tunnel-client.restricted.example.yaml",
     "acceptanceRunbook": "docs/ORCH-PHASE-05-CHATGPT-ACCEPTANCE.md",
-    "restrictedLiveAcceptance": "artifacts/validation/phase05-chatgpt-restricted-live.json"
+    "restrictedLiveAcceptance": "artifacts/validation/phase05-chatgpt-restricted-live.json",
+    "fullControlAttempt": "artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json"
   },
   "officialReferences": [
     "https://developers.openai.com/api/docs/guides/secure-mcp-tunnels",

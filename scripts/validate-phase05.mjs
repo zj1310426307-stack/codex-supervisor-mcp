@@ -10,7 +10,8 @@ const requiredFiles = [
   "scripts/preflight-secure-tunnel.ts",
   "tests/preflight-secure-tunnel.test.ts",
   "artifacts/validation/phase05-summary.json",
-  "artifacts/validation/phase05-chatgpt-restricted-live.json"
+  "artifacts/validation/phase05-chatgpt-restricted-live.json",
+  "artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json"
 ];
 
 for (const relative of requiredFiles) {
@@ -34,10 +35,11 @@ async function json(relative) {
   }
 }
 
-const [packageJson, summary, liveAcceptance, profile, preflight, design, acceptance] = await Promise.all([
+const [packageJson, summary, liveAcceptance, fullControlAttempt, profile, preflight, design, acceptance] = await Promise.all([
   json("package.json"),
   json("artifacts/validation/phase05-summary.json"),
   json("artifacts/validation/phase05-chatgpt-restricted-live.json"),
+  json("artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json"),
   text("config/tunnel-client.restricted.example.yaml"),
   text("scripts/preflight-secure-tunnel.ts"),
   text("docs/ORCH-PHASE-05-DESIGN.md"),
@@ -60,13 +62,38 @@ if (summary) {
     failures.push("Phase 05 summary identity is stale");
   }
   if (summary.secureTunnel?.status !== "PASS") failures.push("Secure Tunnel live acceptance must be PASS");
-  if (summary.chatGpt?.restricted !== "PASS" || summary.chatGpt?.full !== "NOT_RUN") {
-    failures.push("Restricted must be PASS while Full-control remains NOT_RUN");
+  if (summary.chatGpt?.restricted !== "PASS" || summary.chatGpt?.full !== "BLOCKED_BY_ENVIRONMENT") {
+    failures.push("Restricted must be PASS while Full-control records the observed environment block");
   }
   if (summary.chatGpt?.productionReady !== false) failures.push("Restricted acceptance must not claim Production Ready");
   if (summary.secureTunnel?.tunnelIdentifierIncluded !== false || summary.secureTunnel?.credentialsIncluded !== false) {
     failures.push("Phase 05 preparation summary must exclude tunnel identity and credentials");
   }
+}
+
+if (fullControlAttempt) {
+  if (fullControlAttempt.status !== "BLOCKED_BY_ENVIRONMENT" || fullControlAttempt.reasonCode !== "FULL_CONTROL_TOOL_UNAVAILABLE") {
+    failures.push("Full-control attempt must preserve the observed tool-unavailable result");
+  }
+  if (fullControlAttempt.repositoryAgentExecutedChatGptCalls !== false) {
+    failures.push("Full-control evidence provenance must not claim repository-agent ChatGPT calls");
+  }
+  if (fullControlAttempt.containsSensitiveValues !== false || fullControlAttempt.redaction?.credentialsIncluded !== false) {
+    failures.push("Full-control evidence must exclude sensitive values");
+  }
+  if (fullControlAttempt.supervisor?.mode !== "full" || fullControlAttempt.supervisor?.controlEnabled !== true || fullControlAttempt.supervisor?.advertisedToolCount !== 23) {
+    failures.push("Full-control local surface evidence is incomplete");
+  }
+  if (fullControlAttempt.chatGptSurface?.targetToolAvailableInCurrentSession !== false) {
+    failures.push("Full-control attempt must preserve that codex_task_start was unavailable");
+  }
+  for (const field of ["controlToolCalled", "taskStarted", "repositoryWritePerformed", "commitPerformed", "pushPerformed", "mergePerformed", "releasePerformed", "deployPerformed"]) {
+    if (fullControlAttempt.execution?.[field] !== false) failures.push(`Full-control safety evidence ${field} must be false`);
+  }
+  for (const field of ["supervisorStopped", "tunnelClientStopped", "supervisorPortClosed", "tunnelHealthPortClosed"]) {
+    if (fullControlAttempt.shutdown?.[field] !== true) failures.push(`Full-control shutdown evidence ${field} must be true`);
+  }
+  if (fullControlAttempt.productionReady !== false) failures.push("Blocked Full-control acceptance must not claim Production Ready");
 }
 
 if (liveAcceptance) {
@@ -135,4 +162,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log("Phase 05 Restricted tunnel live acceptance and honest evidence boundaries passed.");
+console.log("Phase 05 Restricted PASS and blocked Full-control attempt evidence boundaries passed.");
