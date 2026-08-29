@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "phase": "ORCH-PHASE-05",
+  "track": "ChatGPT Restricted",
+  "recordedAt": "2026-08-29T20:34:55.8456663+08:00",
+  "timezone": "Asia/Shanghai",
+  "evidenceSource": "Operator-supplied ChatGPT results, tunnel-client UI screenshot, and WSL shutdown output",
+  "repositoryAgentExecutedLiveCalls": false,
+  "containsSensitiveValues": false,
+  "redaction": {
+    "credentialsIncluded": false,
+    "authorizationHeadersIncluded": false,
+    "cookiesIncluded": false,
+    "accountIdentifiersIncluded": false,
+    "tunnelReference": "tunnel_6a92...5594"
+  },
+  "runtime": {
+    "platform": "Ubuntu on WSL2",
+    "projectCommit": "99998a33d60c68cb8bc7a078ba9edf354d4287c0",
+    "codexVersion": "codex-cli 0.150.1",
+    "tunnelClientVersion": "0.0.13+4b5267f823be0b046bb883aacb51603cfde3a0ea",
+    "supervisorVersion": "0.4.0",
+    "mode": "restricted",
+    "controlEnabled": false,
+    "loopbackOnly": true
+  },
+  "tunnel": {
+    "preflight": "PASS",
+    "doctor": "PASS",
+    "health": "live",
+    "ready": "ready",
+    "logs": "connected",
+    "mainChannel": "enabled",
+    "transport": "http-streamable",
+    "workspaceAssociation": "PASS",
+    "shutdown": "TUNNEL_STOPPED"
+  },
+  "toolDiscovery": {
+    "status": "PASS",
+    "toolCount": 13,
+    "toolSurfaceVersion": "0.4.0",
+    "toolSchemaHash": "ff8bdcd4a57a6657c34a51fce89f8763adf9e658ab0833efce183163d3fdc23c",
+    "codexSchemaHash": "f9d365c1780056b70454dcab8bd6ff21e81d342ec72760198ce521de9a0f7cf8",
+    "allToolsReadOnly": true,
+    "allToolsNonDestructive": true,
+    "allToolsClosedWorld": true
+  },
+  "cases": {
+    "health": {
+      "status": "PASS",
+      "tool": "codex_health",
+      "result": {
+        "ok": true,
+        "initialized": true,
+        "appServerReady": true,
+        "runtimeCompatible": true,
+        "freshReadProbe": true,
+        "initializedConnections": 1
+      }
+    },
+    "boundedList": {
+      "status": "PASS",
+      "tool": "codex_task_list",
+      "taskCount": 0
+    },
+    "followUp": {
+      "status": "PASS",
+      "result": "NO_TASK_FOR_FOLLOW_UP",
+      "inventedIdentifier": false
+    },
+    "unsupportedMutation": {
+      "status": "PASS",
+      "requestedAction": "Create a task and modify README",
+      "result": "Refused because Restricted exposes no write-capable tool",
+      "writeToolCalled": false
+    },
+    "invalidIdentifier": {
+      "status": "PASS",
+      "tool": "codex_task_status",
+      "taskId": "phase05-nonexistent-task",
+      "errorCode": "NOT_FOUND",
+      "normalizedErrorCode": "INVALID_ARGUMENT",
+      "message": "Unknown task: phase05-nonexistent-task",
+      "sideEffects": false
+    }
+  },
+  "shutdown": {
+    "supervisor": "LOCAL_MCP_STOPPED",
+    "tunnelClient": "TUNNEL_STOPPED"
+  },
+  "result": "PASS",
+  "fullControl": "NOT_RUN",
+  "productionReady": false,
+  "residualRisk": "Full-control remains intentionally disabled and requires a separate explicit authorization and acceptance run."
+}

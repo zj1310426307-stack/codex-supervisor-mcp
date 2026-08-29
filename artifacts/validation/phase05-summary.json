@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "phase": "ORCH-PHASE-05",
-  "generatedAt": "2026-08-29T10:56:55.231Z",
+  "generatedAt": "2026-08-29T20:34:55.8456663+08:00",
   "project": {
     "name": "codex-supervisor-mcp",
     "version": "0.4.0",
-    "baselineCommit": "abdde6c3dfdea82d6b0bab936189a898b8a6dd13",
+    "baselineCommit": "99998a33d60c68cb8bc7a078ba9edf354d4287c0",
     "branch": "orch/phase-05-restricted-tunnel-ready"
   },
   "scope": "Restricted Secure MCP Tunnel preparation",
@@ -19,14 +19,14 @@
     "localReadinessRequired": true
   },
   "secureTunnel": {
-    "status": "NOT_RUN",
+    "status": "PASS",
     "clientVersion": "0.0.13+4b5267f823be0b046bb883aacb51603cfde3a0ea",
     "cloudflaredVersion": "2026.8.2",
     "releaseChecksums": "PASS",
     "quickstartHelp": "PASS",
-    "doctor": "NOT_RUN",
-    "daemonHealthy": "NOT_RUN",
-    "daemonReady": "NOT_RUN",
+    "doctor": "PASS",
+    "daemonHealthy": "PASS",
+    "daemonReady": "PASS",
     "tunnelIdentifierIncluded": false,
     "credentialsIncluded": false
   },
@@ -39,7 +39,7 @@
     "fullCheck": "PASS_162_OF_162"
   },
   "preflight": {
-    "status": "BLOCKED_BY_CONFIGURATION",
+    "status": "PASS",
     "readOnly": true,
     "containsSensitiveValues": false,
     "passed": [
@@ -48,9 +48,7 @@
       "localPort",
       "localPath",
       "tunnelClientVersion",
-      "tunnelClientQuickstart"
-    ],
-    "blocked": [
+      "tunnelClientQuickstart",
       "localCredential",
       "tunnelCredentialMapping",
       "runtimeHeader",
@@ -60,19 +58,27 @@
       "credentialSeparation",
       "localMcpUrl",
       "localReadiness"
-    ]
+    ],
+    "blocked": []
   },
   "chatGpt": {
-    "restricted": "NOT_RUN",
+    "restricted": "PASS",
     "full": "NOT_RUN",
-    "developerMode": "NOT_CHECKED",
+    "developerMode": "ENABLED",
+    "toolDiscovery": "PASS_13_OF_13",
+    "directHealth": "PASS",
+    "followUp": "PASS_NO_IDENTIFIER_INVENTION",
+    "unsupportedMutation": "PASS_REFUSED",
+    "invalidIdentifier": "PASS_FAILED_CLOSED",
+    "shutdown": "PASS",
     "productionReady": false
   },
-  "disposition": "BLOCKED_BY_CONFIGURATION / EXTERNAL NOT_RUN",
+  "disposition": "RESTRICTED_ACCEPTANCE_PASS / FULL_CONTROL_NOT_RUN",
   "evidence": {
     "phase04": "artifacts/validation/phase04-summary.json",
     "profileTemplate": "config/tunnel-client.restricted.example.yaml",
-    "acceptanceRunbook": "docs/ORCH-PHASE-05-CHATGPT-ACCEPTANCE.md"
+    "acceptanceRunbook": "docs/ORCH-PHASE-05-CHATGPT-ACCEPTANCE.md",
+    "restrictedLiveAcceptance": "artifacts/validation/phase05-chatgpt-restricted-live.json"
   },
   "officialReferences": [
     "https://developers.openai.com/api/docs/guides/secure-mcp-tunnels",

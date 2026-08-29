@@ -14,9 +14,37 @@ Official connection references:
 
 | Track | Status | Reason |
 |---|---|---|
-| Secure MCP Tunnel | NOT_RUN | No tunnel identity/runtime key or live tunnel-client evidence was supplied |
-| ChatGPT Restricted (13 tools) | NOT_RUN | Requires a real developer-mode app connected through the tunnel |
+| Secure MCP Tunnel | PASS | Operator supplied preflight, doctor, healthy/ready/connected UI, real forwarding, and shutdown evidence |
+| ChatGPT Restricted (13 tools) | PASS | Real developer-mode discovery and bounded read-only calls passed through the tunnel |
 | ChatGPT Full-control (23 tools) | NOT_RUN | Restricted acceptance and a separate explicit authorization are prerequisites |
+
+The recorded result is based on operator-supplied external evidence. The
+repository agent did not execute the ChatGPT-side calls and does not claim that
+it did. The redacted structured record is
+`artifacts/validation/phase05-chatgpt-restricted-live.json`.
+
+## Recorded Restricted evidence
+
+Recorded at `2026-08-29T20:34:55.8456663+08:00` (`Asia/Shanghai`):
+
+- WSL2 preflight and `tunnel-client doctor --explain`: `PASS`.
+- Tunnel admin UI: health `live`, readiness `ready`, logs `connected`, and the
+  main `http-streamable` channel enabled.
+- ChatGPT developer-mode app discovery: exactly 13 Restricted tools with schema
+  hash `ff8bdcd4a57a6657c34a51fce89f8763adf9e658ab0833efce183163d3fdc23c`.
+- `codex_health`: Supervisor initialized, App Server ready, compatible runtime,
+  and fresh read probe all passed on `codex-cli 0.150.1`.
+- `codex_task_list`: bounded empty result (`0` tasks).
+- Follow-up: returned `NO_TASK_FOR_FOLLOW_UP` without inventing a task ID.
+- Unsupported mutation: task creation and README modification were refused;
+  no write-capable tool was called.
+- Invalid identifier: `codex_task_status` failed closed with `NOT_FOUND` /
+  normalized `INVALID_ARGUMENT` and no side effects.
+- Shutdown: `LOCAL_MCP_STOPPED` and `TUNNEL_STOPPED`.
+
+No bearer value, API key, authorization header, cookie, account identifier, or
+private URL is stored. Full-control remains `NOT_RUN`, and this Restricted PASS
+does not authorize an upgrade.
 
 ## Operator sequence
 

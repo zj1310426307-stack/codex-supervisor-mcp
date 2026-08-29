@@ -9,7 +9,8 @@ const requiredFiles = [
   "docs/ORCH-PHASE-05-CHATGPT-ACCEPTANCE.md",
   "scripts/preflight-secure-tunnel.ts",
   "tests/preflight-secure-tunnel.test.ts",
-  "artifacts/validation/phase05-summary.json"
+  "artifacts/validation/phase05-summary.json",
+  "artifacts/validation/phase05-chatgpt-restricted-live.json"
 ];
 
 for (const relative of requiredFiles) {
@@ -33,9 +34,10 @@ async function json(relative) {
   }
 }
 
-const [packageJson, summary, profile, preflight, design, acceptance] = await Promise.all([
+const [packageJson, summary, liveAcceptance, profile, preflight, design, acceptance] = await Promise.all([
   json("package.json"),
   json("artifacts/validation/phase05-summary.json"),
+  json("artifacts/validation/phase05-chatgpt-restricted-live.json"),
   text("config/tunnel-client.restricted.example.yaml"),
   text("scripts/preflight-secure-tunnel.ts"),
   text("docs/ORCH-PHASE-05-DESIGN.md"),
@@ -57,13 +59,34 @@ if (summary) {
   if (summary.phase !== "ORCH-PHASE-05" || summary.project?.version !== "0.4.0") {
     failures.push("Phase 05 summary identity is stale");
   }
-  if (summary.secureTunnel?.status !== "NOT_RUN") failures.push("Secure Tunnel must remain NOT_RUN without operator evidence");
-  if (summary.chatGpt?.restricted !== "NOT_RUN" || summary.chatGpt?.full !== "NOT_RUN") {
-    failures.push("ChatGPT tracks must remain NOT_RUN without operator evidence");
+  if (summary.secureTunnel?.status !== "PASS") failures.push("Secure Tunnel live acceptance must be PASS");
+  if (summary.chatGpt?.restricted !== "PASS" || summary.chatGpt?.full !== "NOT_RUN") {
+    failures.push("Restricted must be PASS while Full-control remains NOT_RUN");
   }
-  if (summary.chatGpt?.productionReady !== false) failures.push("Phase 05 preparation cannot claim Production Ready");
+  if (summary.chatGpt?.productionReady !== false) failures.push("Restricted acceptance must not claim Production Ready");
   if (summary.secureTunnel?.tunnelIdentifierIncluded !== false || summary.secureTunnel?.credentialsIncluded !== false) {
     failures.push("Phase 05 preparation summary must exclude tunnel identity and credentials");
+  }
+}
+
+if (liveAcceptance) {
+  if (liveAcceptance.result !== "PASS" || liveAcceptance.fullControl !== "NOT_RUN") {
+    failures.push("Live acceptance result must preserve Restricted PASS and Full-control NOT_RUN");
+  }
+  if (liveAcceptance.repositoryAgentExecutedLiveCalls !== false) {
+    failures.push("Live evidence provenance must state that the repository agent did not execute external calls");
+  }
+  if (liveAcceptance.containsSensitiveValues !== false || liveAcceptance.redaction?.credentialsIncluded !== false) {
+    failures.push("Live evidence must exclude sensitive values");
+  }
+  if (liveAcceptance.toolDiscovery?.toolCount !== 13 || liveAcceptance.toolDiscovery?.toolSchemaHash !== "ff8bdcd4a57a6657c34a51fce89f8763adf9e658ab0833efce183163d3fdc23c") {
+    failures.push("Live Restricted tool discovery evidence is stale");
+  }
+  for (const name of ["health", "boundedList", "followUp", "unsupportedMutation", "invalidIdentifier"]) {
+    if (liveAcceptance.cases?.[name]?.status !== "PASS") failures.push(`Live acceptance case ${name} must be PASS`);
+  }
+  if (liveAcceptance.shutdown?.supervisor !== "LOCAL_MCP_STOPPED" || liveAcceptance.shutdown?.tunnelClient !== "TUNNEL_STOPPED") {
+    failures.push("Live acceptance shutdown evidence is incomplete");
   }
 }
 
@@ -112,4 +135,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log("Phase 05 Restricted tunnel preparation and honest external evidence boundaries passed.");
+console.log("Phase 05 Restricted tunnel live acceptance and honest evidence boundaries passed.");
