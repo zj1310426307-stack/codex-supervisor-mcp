@@ -11,7 +11,8 @@ const requiredFiles = [
   "tests/preflight-secure-tunnel.test.ts",
   "artifacts/validation/phase05-summary.json",
   "artifacts/validation/phase05-chatgpt-restricted-live.json",
-  "artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json"
+  "artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json",
+  "artifacts/validation/phase05-chatgpt-fullcontrol-live.json"
 ];
 
 for (const relative of requiredFiles) {
@@ -35,11 +36,12 @@ async function json(relative) {
   }
 }
 
-const [packageJson, summary, liveAcceptance, fullControlAttempt, profile, preflight, design, acceptance] = await Promise.all([
+const [packageJson, summary, liveAcceptance, fullControlAttempt, fullControlLive, profile, preflight, design, acceptance] = await Promise.all([
   json("package.json"),
   json("artifacts/validation/phase05-summary.json"),
   json("artifacts/validation/phase05-chatgpt-restricted-live.json"),
   json("artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json"),
+  json("artifacts/validation/phase05-chatgpt-fullcontrol-live.json"),
   text("config/tunnel-client.restricted.example.yaml"),
   text("scripts/preflight-secure-tunnel.ts"),
   text("docs/ORCH-PHASE-05-DESIGN.md"),
@@ -65,13 +67,44 @@ if (summary) {
     failures.push("Phase 05 summary identity is stale");
   }
   if (summary.secureTunnel?.status !== "PASS") failures.push("Secure Tunnel live acceptance must be PASS");
-  if (summary.chatGpt?.restricted !== "PASS" || summary.chatGpt?.full !== "BLOCKED_BY_ENVIRONMENT") {
-    failures.push("Restricted must be PASS while Full-control records the observed environment block");
+  if (summary.chatGpt?.restricted !== "PASS" || summary.chatGpt?.full !== "PASS") {
+    failures.push("Restricted and the later isolated Full-control invocation must both be PASS");
   }
   if (summary.chatGpt?.productionReady !== false) failures.push("Restricted acceptance must not claim Production Ready");
   if (summary.secureTunnel?.tunnelIdentifierIncluded !== false || summary.secureTunnel?.credentialsIncluded !== false) {
     failures.push("Phase 05 preparation summary must exclude tunnel identity and credentials");
   }
+}
+
+if (fullControlLive) {
+  if (fullControlLive.status !== "PASS" || fullControlLive.reasonCode !== "CHATGPT_WEB_INVOKED_CODEX") {
+    failures.push("Full-control live evidence must record the successful ChatGPT-to-Codex invocation");
+  }
+  if (fullControlLive.repositoryAgentExecutedChatGptCalls !== true) {
+    failures.push("Full-control live evidence provenance must record repository-agent browser execution");
+  }
+  if (fullControlLive.containsSensitiveValues !== false || fullControlLive.redaction?.credentialsIncluded !== false) {
+    failures.push("Full-control live evidence must exclude sensitive values");
+  }
+  if (fullControlLive.supervisor?.advertisedToolCount !== 23 || fullControlLive.chatGptSurface?.discoveredToolCount !== 23) {
+    failures.push("Full-control live evidence must preserve exact 23-tool discovery");
+  }
+  if (fullControlLive.chatGptSurface?.targetTool !== "codex_task_start" || fullControlLive.chatGptSurface?.targetToolCalled !== true) {
+    failures.push("Full-control live evidence must prove codex_task_start was available and called");
+  }
+  if (fullControlLive.execution?.taskStarted !== true || fullControlLive.execution?.codexTurnCompleted !== true) {
+    failures.push("Full-control live evidence must prove a started and completed Codex turn");
+  }
+  if (fullControlLive.execution?.supervisorTaskStatus !== "awaiting_verification") {
+    failures.push("Full-control live evidence must not overstate the unverified Supervisor lifecycle state");
+  }
+  if (JSON.stringify(fullControlLive.execution?.changedFiles) !== JSON.stringify(["README.md"]) || fullControlLive.execution?.readmeLineCount !== 1 || fullControlLive.execution?.readmeByteCount !== 40) {
+    failures.push("Full-control live evidence must preserve the bounded README-only result");
+  }
+  for (const field of ["commitPerformed", "pushPerformed", "mergePerformed", "releasePerformed", "deployPerformed", "cleanupPerformed"]) {
+    if (fullControlLive.execution?.[field] !== false) failures.push(`Full-control live safety evidence ${field} must be false`);
+  }
+  if (fullControlLive.productionReady !== false) failures.push("Invocation PASS must not overstate Production Ready");
 }
 
 if (fullControlAttempt) {
@@ -168,4 +201,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log("Phase 05 Restricted PASS and blocked Full-control attempt evidence boundaries passed.");
+console.log("Phase 05 Restricted PASS, historical blocked attempt, and isolated Full-control invocation PASS evidence boundaries passed.");

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "phase": "ORCH-PHASE-05",
+  "track": "ChatGPT Full-control invocation",
+  "recordedAt": "2026-08-30T01:13:18.7025967+08:00",
+  "timezone": "Asia/Shanghai",
+  "status": "PASS",
+  "reasonCode": "CHATGPT_WEB_INVOKED_CODEX",
+  "evidenceSource": "Repository-agent browser execution in the operator's signed-in ChatGPT session plus read-only WSL Supervisor state and isolated-worktree inspection",
+  "repositoryAgentExecutedChatGptCalls": true,
+  "containsSensitiveValues": false,
+  "redaction": {
+    "credentialsIncluded": false,
+    "authorizationHeadersIncluded": false,
+    "cookiesIncluded": false,
+    "accountIdentifiersIncluded": false,
+    "privateUrlsIncluded": false,
+    "tunnelReference": "tunnel_6a92...5594"
+  },
+  "authorization": {
+    "explicitTemporaryFullControlAuthorization": true,
+    "newChatGptAppCreated": true,
+    "perActionConfirmationRequired": true,
+    "execPolicyAmendmentAuthorized": false
+  },
+  "isolation": {
+    "temporaryRepository": true,
+    "repositoryLeaf": "codex-supervisor-fullcontrol-54G2ESCM",
+    "repositoryRemoteConfigured": false,
+    "sourceRepositoryCleanAfterRun": true,
+    "productionRepositoryTargeted": false,
+    "packageInstallPerformed": false,
+    "networkWritePerformed": false
+  },
+  "supervisor": {
+    "version": "0.4.0",
+    "mode": "full",
+    "controlEnabled": true,
+    "advertisedToolCount": 23,
+    "toolSchemaHash": "b3b0284da37852d182a0e1d8b403634c176b41d468dfdac7290485913c4ecc00",
+    "codexVersion": "codex-cli 0.150.1",
+    "appServerReady": true,
+    "runtimeCompatible": true
+  },
+  "chatGptSurface": {
+    "independentAppName": "Codex Supervisor MCP Full-control",
+    "connectorReachable": true,
+    "freshToolDiscoveryObserved": true,
+    "discoveredToolCount": 23,
+    "targetTool": "codex_task_start",
+    "targetToolAvailable": true,
+    "targetToolCalled": true
+  },
+  "execution": {
+    "taskId": "8c45e2ec-d802-45af-bf62-4e3e0a6da26d",
+    "clientRequestId": "phase05-chatgpt-web-live-acceptance-001",
+    "taskStarted": true,
+    "codexTurnCompleted": true,
+    "supervisorTaskStatus": "awaiting_verification",
+    "repositoryWritePerformed": true,
+    "changedFiles": [
+      "README.md"
+    ],
+    "readmeLineCount": 1,
+    "readmeByteCount": 40,
+    "readmeContent": "ChatGPT Web invoked Codex successfully.\n",
+    "commitPerformed": false,
+    "pushPerformed": false,
+    "mergePerformed": false,
+    "releasePerformed": false,
+    "deployPerformed": false,
+    "cleanupPerformed": false
+  },
+  "approvals": {
+    "normalRiskOnly": true,
+    "initialReadOnlyInspectionApproved": true,
+    "singleFileChangeApproved": true,
+    "finalReadOnlyVerificationApproved": true,
+    "unrelatedApprovalAccepted": false
+  },
+  "verification": {
+    "isolatedSnapshotChangedFiles": [
+      "README.md"
+    ],
+    "exactContentVerified": true,
+    "sourceRepositoryUnchanged": true,
+    "pendingApprovals": 0,
+    "fullLifecycleAcceptanceRecorded": false
+  },
+  "runtimeObservations": {
+    "supervisorReadyAfterRun": true,
+    "tunnelReadyAfterRun": true,
+    "intermittentControlPlanePollTimeoutRecovered": true,
+    "codexModelRefreshChildExitTimeoutsObserved": true
+  },
+  "shutdown": {
+    "supervisorStillRunningForOperator": true,
+    "tunnelClientStillRunningForOperator": true,
+    "taskWorktreePreservedForAudit": true
+  },
+  "result": "PASS",
+  "productionReady": false,
+  "residualRisk": "The ChatGPT-to-Codex invocation path passed, but the Supervisor task remains awaiting_verification because no task verification/acceptance decision or cleanup was authorized. Runtime services are still operator-managed rather than production-managed."
+}

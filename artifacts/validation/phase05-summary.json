@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "phase": "ORCH-PHASE-05",
-  "generatedAt": "2026-08-30T00:12:04.1755983+08:00",
+  "generatedAt": "2026-08-30T01:13:18.7025967+08:00",
   "project": {
     "name": "codex-supervisor-mcp",
     "version": "0.4.0",
     "baselineCommit": "99998a33d60c68cb8bc7a078ba9edf354d4287c0",
     "branch": "orch/phase-05-restricted-tunnel-ready"
   },
-  "scope": "Restricted Secure MCP Tunnel preparation",
+  "scope": "Restricted Secure MCP Tunnel acceptance and isolated Full-control ChatGPT-to-Codex invocation acceptance",
   "deterministicPreparation": {
     "status": "PASS",
     "readOnlyPreflightImplemented": true,
@@ -36,7 +36,7 @@
     "writesToWslProject": false,
     "tunnelClientInstallAttempted": true,
     "tunnelClientInstalled": true,
-    "fullCheck": "PASS_162_OF_162"
+    "fullCheck": "PASS_163_OF_165_WITH_2_SKIPS"
   },
   "preflight": {
     "status": "PASS",
@@ -63,27 +63,33 @@
   },
   "chatGpt": {
     "restricted": "PASS",
-    "full": "BLOCKED_BY_ENVIRONMENT",
+    "full": "PASS",
     "developerMode": "ENABLED",
     "toolDiscovery": "PASS_13_OF_13",
     "directHealth": "PASS",
     "followUp": "PASS_NO_IDENTIFIER_INVENTION",
     "unsupportedMutation": "PASS_REFUSED",
     "invalidIdentifier": "PASS_FAILED_CLOSED",
-    "fullControlToolExposure": "FULL_CONTROL_TOOL_UNAVAILABLE",
-    "fullControlTaskStarted": false,
-    "fullControlRepositoryWrite": false,
-    "fullControlShutdown": "PASS",
+    "fullControlToolExposure": "PASS_23_OF_23",
+    "fullControlTaskStarted": true,
+    "fullControlRepositoryWrite": true,
+    "fullControlCodexTurn": "COMPLETED",
+    "fullControlChangedFiles": [
+      "README.md"
+    ],
+    "fullControlTaskStatus": "AWAITING_VERIFICATION",
+    "fullControlShutdown": "NOT_RUN_SERVICES_RETAINED_FOR_OPERATOR",
     "shutdown": "PASS",
     "productionReady": false
   },
-  "disposition": "RESTRICTED_ACCEPTANCE_PASS / FULL_CONTROL_BLOCKED_BY_ENVIRONMENT",
+  "disposition": "RESTRICTED_ACCEPTANCE_PASS / FULL_CONTROL_CHATGPT_TO_CODEX_INVOCATION_PASS / PRODUCTION_READY_FALSE",
   "evidence": {
     "phase04": "artifacts/validation/phase04-summary.json",
     "profileTemplate": "config/tunnel-client.restricted.example.yaml",
     "acceptanceRunbook": "docs/ORCH-PHASE-05-CHATGPT-ACCEPTANCE.md",
     "restrictedLiveAcceptance": "artifacts/validation/phase05-chatgpt-restricted-live.json",
-    "fullControlAttempt": "artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json"
+    "fullControlAttempt": "artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json",
+    "fullControlLiveAcceptance": "artifacts/validation/phase05-chatgpt-fullcontrol-live.json"
   },
   "officialReferences": [
     "https://developers.openai.com/api/docs/guides/secure-mcp-tunnels",

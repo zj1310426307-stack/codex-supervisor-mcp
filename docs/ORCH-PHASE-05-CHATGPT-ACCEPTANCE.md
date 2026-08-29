@@ -16,14 +16,18 @@ Official connection references:
 |---|---|---|
 | Secure MCP Tunnel | PASS | Operator supplied preflight, doctor, healthy/ready/connected UI, real forwarding, and shutdown evidence |
 | ChatGPT Restricted (13 tools) | PASS | Real developer-mode discovery and bounded read-only calls passed through the tunnel |
-| ChatGPT Full-control (23 tools) | BLOCKED_BY_ENVIRONMENT | Local health advertised 23 tools, but `codex_task_start` was unavailable in the current ChatGPT session; no task or write occurred |
+| ChatGPT Full-control (23 tools) | PASS | A new independent ChatGPT app discovered all 23 tools, called `codex_task_start`, and Codex completed the only allowed `README.md` change in an isolated no-remote repository |
 
-The recorded result is based on operator-supplied external evidence. The
-repository agent did not execute the ChatGPT-side calls and does not claim that
-it did. The redacted structured record is
+The Restricted result is based on operator-supplied external evidence; the
+repository agent did not execute those Restricted ChatGPT-side calls. Its
+redacted structured record is
 `artifacts/validation/phase05-chatgpt-restricted-live.json`. The separately
-authorized Full-control attempt is recorded in
-`artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json`.
+authorized blocked Full-control attempt is preserved in
+`artifacts/validation/phase05-chatgpt-fullcontrol-attempt.json`. The later
+successful run was executed through the operator's signed-in ChatGPT browser
+session by the repository agent and is recorded, without credentials or
+account identifiers, in
+`artifacts/validation/phase05-chatgpt-fullcontrol-live.json`.
 
 ## Recorded Restricted evidence
 
@@ -69,6 +73,35 @@ Recorded at `2026-08-30T00:12:04.1755983+08:00` (`Asia/Shanghai`):
 
 The result is `BLOCKED_BY_ENVIRONMENT`, not PASS. Production readiness remains
 false.
+
+## Recorded successful Full-control invocation
+
+Recorded at `2026-08-30T01:13:18.7025967+08:00` (`Asia/Shanghai`):
+
+- A new independent developer-mode app named
+  `Codex Supervisor MCP Full-control` discovered exactly 23 tools and exposed
+  `codex_task_start`; the frozen schema hash was
+  `b3b0284da37852d182a0e1d8b403634c176b41d468dfdac7290485913c4ecc00`.
+- ChatGPT Web called `codex_task_start` exactly once against an initialized,
+  clean, no-remote temporary Git repository. The returned task ID was
+  `8c45e2ec-d802-45af-bf62-4e3e0a6da26d`.
+- The structured contract allowed only `README.md`, prohibited network and
+  package installation, and prohibited commit, push, merge, release, deploy,
+  branch changes, and source-Supervisor edits.
+- Codex completed its turn. The isolated snapshot and final read-only check
+  showed exactly one changed file, `README.md`, containing one 40-byte line:
+  `ChatGPT Web invoked Codex successfully.` followed by a newline.
+- The source temporary repository remained clean; the change exists only in
+  the task-owned isolated worktree. No commit, push, merge, release, deploy, or
+  cleanup occurred.
+- Supervisor and tunnel readiness remained healthy after the run. They were
+  intentionally retained for the operator rather than stopped automatically.
+
+This proves the ChatGPT Web -> Secure MCP Tunnel -> Supervisor -> Codex App
+Server -> Codex execution path. It does not claim Production Ready: the task is
+still `awaiting_verification`, no independent verification profile or final
+task acceptance decision was authorized, and the runtime is still manually
+managed.
 
 ## Operator sequence
 
