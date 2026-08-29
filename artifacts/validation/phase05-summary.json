@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "phase": "ORCH-PHASE-05",
-  "generatedAt": "2026-08-29T10:34:33.304Z",
+  "generatedAt": "2026-08-29T10:56:55.231Z",
   "project": {
     "name": "codex-supervisor-mcp",
     "version": "0.4.0",
@@ -20,7 +20,10 @@
   },
   "secureTunnel": {
     "status": "NOT_RUN",
-    "clientVersion": "NOT_INSTALLED_IN_WSL",
+    "clientVersion": "0.0.13+4b5267f823be0b046bb883aacb51603cfde3a0ea",
+    "cloudflaredVersion": "2026.8.2",
+    "releaseChecksums": "PASS",
+    "quickstartHelp": "PASS",
     "doctor": "NOT_RUN",
     "daemonHealthy": "NOT_RUN",
     "daemonReady": "NOT_RUN",
@@ -28,10 +31,36 @@
     "credentialsIncluded": false
   },
   "environmentObservation": {
-    "wslProjectBranch": "orch/phase-04-live-ready",
-    "wslProjectSync": "DEFERRED_EXISTING_DIRTY_WORKTREE",
+    "wslProjectBranch": "orch/phase-05-restricted-tunnel-ready",
+    "wslProjectSync": "CLEAN_CLONE_AT_PHASE05_COMMIT",
     "writesToWslProject": false,
-    "tunnelClientInstallAttempted": false
+    "tunnelClientInstallAttempted": true,
+    "tunnelClientInstalled": true,
+    "fullCheck": "PASS_162_OF_162"
+  },
+  "preflight": {
+    "status": "BLOCKED_BY_CONFIGURATION",
+    "readOnly": true,
+    "containsSensitiveValues": false,
+    "passed": [
+      "loopbackBind",
+      "restrictedMode",
+      "localPort",
+      "localPath",
+      "tunnelClientVersion",
+      "tunnelClientQuickstart"
+    ],
+    "blocked": [
+      "localCredential",
+      "tunnelCredentialMapping",
+      "runtimeHeader",
+      "discoveryHeader",
+      "tunnelId",
+      "runtimeCredential",
+      "credentialSeparation",
+      "localMcpUrl",
+      "localReadiness"
+    ]
   },
   "chatGpt": {
     "restricted": "NOT_RUN",
@@ -39,7 +68,7 @@
     "developerMode": "NOT_CHECKED",
     "productionReady": false
   },
-  "disposition": "READY_FOR OPERATOR TUNNEL SETUP / EXTERNAL NOT_RUN",
+  "disposition": "BLOCKED_BY_CONFIGURATION / EXTERNAL NOT_RUN",
   "evidence": {
     "phase04": "artifacts/validation/phase04-summary.json",
     "profileTemplate": "config/tunnel-client.restricted.example.yaml",
